@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# Dependencies: jq, moreutils
+
 runhelp() {
     echo ""
     echo "Usage: verify-hash.sh"
@@ -7,9 +9,9 @@ runhelp() {
     echo "  Verify a file contents matches a given hash"
     echo ""
     echo "FLAGS:"
-    echo "  -f|--file FILE"
+    echo "  -c|--check-file FILE"
     echo "      The file to verify"
-    echo "  -h|--hash-file HASH_FILE"
+    echo "  -f|--hash-file HASH_FILE"
     echo "      A file containing a hash to verify against."
     echo "  -s|--hash-str HASH_STR"
     echo "      A string hash to verify against."
@@ -22,7 +24,7 @@ runhelp() {
     echo ""
 }
 
-if [[ -z "$1" || $1 == "-h" || $1 == "--help" || $1 == "help" ]]; then
+if [[ -z "$1" || $1 == "help" ]]; then
     runhelp
     exit 0
 fi
@@ -47,7 +49,7 @@ array_contains() {
 # Set defaults
 default_args() {
     declare -g -A ARGS
-    ARGS[FILE]=
+    ARGS[CHECK_FILE]=
     ARGS[HASH_FILE]=
     ARGS[HASH_STR]=
     ARGS[ALGO]=
@@ -60,14 +62,14 @@ parse_args() {
     # Parse flag arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
-        -f|--file)
-            ARGS[FILE]="$( readlink -f $2 )"
-            if [[ $? -ne 0 || ! -f "${ARGS[FILE]}" ]]; then
-                stderr "File does not exist: $2"
+        -c|--check-file)
+            ARGS[CHECK_FILE]="$( readlink -f $2 )"
+            if [[ $? -ne 0 || ! -f "${ARGS[CHECK_FILE]}" ]]; then
+                stderr "File to check does not exist: $2"
                 exit 3
             fi
             shift; shift ;;
-        -h|--hash-file)
+        -f|--hash-file)
             ARGS[HASH_FILE]="$( readlink -f $2 )"
             if [[ $? -ne 0 || ! -f "${ARGS[HASH_FILE]}" ]]; then
                 stderr "Hash file does not exist: $2"
@@ -99,12 +101,28 @@ parse_args() {
             shift; shift ;;
         -v|--verbose)
             ARGS[VERBOSE]=1
-            shift;;
+            shift ;;
+        -h|--help)
+            runhelp
+            exit 0
+            ;;
         *)
-            stderr "ERROR: Unknown flag: $1"
+            stderr "Error: Unknown flag: $1"
             exit 1
         esac
     done
+
+    required_flags
+
+    if [[ -z "${ARGS[HASH_STR]}" && -z "${ARGS[HASH_FILE]}" ]]; then
+        ARGS[HASH_FILE]="${ARGS[CHECK_FILE]}.${ARGS[ALGO]}"
+        if [[ -f "${ARGS[HASH_FILE]}" ]]; then
+            verbose "No hash source provided. Assuming: ${ARGS[HASH_FILE]}"
+        else
+            stderr "No hash source provided."
+            exit 4
+        fi
+    fi
 }
 
 verbose() {
@@ -119,22 +137,66 @@ stderr() {
 }
 
 required_flags() {
-    REQUIRED=( FILE )
+    REQUIRED=( CHECK_FILE ALGO )
     for REQ in "${REQUIRED[@]}"; do
         if [[ -z "${ARGS[$REQ]}" ]]; then
-            stderr "FAILURE: Missing required flag --${REQ,,}"
+            stderr "Failure: Missing required flag --${REQ,,}"
             exit 1
         fi
     done
 }
 
+first_word_lower() {
+    echo "${1,,}" | head -n1 | cut -d ' ' -f1
+}
+
 main() {
-    echo "TODO"
+    HASH_CHECKED=0
+    HASH_MISMATCH=0
+
+    HASHBIN="${ARGS[ALGO]}sum"
+    if [[ -n "${ARGS[HASH_FILE]}" && -n "${ARGS[HASH_STR]}" ]]; then
+        stderr "Can only verify either --hash-file or --hash-str, but not both at the same time."
+        exit 4
+    elif [[ -n "${ARGS[HASH_FILE]}" ]]; then
+        HASH_VERIFY=$( first_word_lower $( cat "${ARGS[HASH_FILE]}" ) )
+        verbose "Read hash $HASH_VERIFY from ${ARGS[HASH_FILE]}"
+    elif [[ -n "${ARGS[HASH_STR]}" ]]; then
+        HASH_VERIFY=$( first_word_lower "${ARGS[HASH_STR]}" )
+        verbose "Read hash $HASH_VERIFY from hash string"
+    fi
+
+    HASH_CHECK=$( first_word_lower $( $HASHBIN "${ARGS[CHECK_FILE]}" ) )
+    verbose "Computed hash $HASH_CHECK from ${ARGS[CHECK_FILE]} using $HASHBIN"
+    if [[ $HASH_VERIFY != $HASH_CHECK ]]; then
+        verbose "Hashes do NOT match."
+        HASH_MISMATCH=1
+    fi
+    HASH_CHECKED=1
+
+    # Update JSON if provided
+    if [[ -n "${ARGS[JSON]}" ]]; then
+        verbose "Updating JSON file ${ARGS[ALGO]} with hash check results."
+        # jq ".\"verify-hash\" |= .+ [{stuff:1}]" my.json
+        jq ".\"verify-hash\" |= .+ [{ \
+                algorithm: \"${ARGS[ALGO]}\", \
+                expected: \"${HASH_VERIFY}\", \
+                computed: \"${HASH_CHECK}\", \
+                matched: $(( 1 - $HASH_MISMATCH )) \
+            }]" \
+            "${ARGS[JSON]}" | sponge "${ARGS[JSON]}"
+    fi
+
+    # Exit success only if a check occured and there was no mismatch
+    if [[ $HASH_CHECKED -eq 1 && $HASH_MISMATCH -eq 0 ]]; then
+        verbose "Hash checked and verified as matching."
+        exit 0
+    fi
+    verbose "Hash check failed."
+    exit 1
 }
 
 # Parse and start running
 default_args
 parse_args "$@"
-required_flags
 main
-

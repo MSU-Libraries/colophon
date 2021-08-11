@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# If no JSON exists, create it
+
