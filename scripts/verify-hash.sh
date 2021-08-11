@@ -108,7 +108,7 @@ parse_args() {
             ;;
         *)
             stderr "Error: Unknown flag: $1"
-            exit 1
+            exit 4
         esac
     done
 
@@ -141,7 +141,7 @@ required_flags() {
     for REQ in "${REQUIRED[@]}"; do
         if [[ -z "${ARGS[$REQ]}" ]]; then
             stderr "Failure: Missing required flag --${REQ,,}"
-            exit 1
+            exit 4
         fi
     done
 }
