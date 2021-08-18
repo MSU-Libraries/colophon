@@ -1,0 +1,95 @@
+#!/usr/bin/env python3
+import argparse
+import csv
+import json
+import os
+import subprocess
+import sys
+import tempfile
+
+# Dependencies: libreoffice-common
+
+def main(argv=None):
+    apar = argparse.ArgumentParser(prog='generate-manifest-from-excel',
+    description="""Create a colophon manifest from an Excel/CSV file
+    """)
+    apar.add_argument('-m','--mapfile', type=str, metavar='MAPFILE',
+            help='a JSON mapping file used to parse specific columns and rows from the ' \
+                 'spreadsheet')
+    apar.add_argument('-s','--spreadsheet', type=str, metavar='SPREADSHEET',
+            help='a spreadsheet file to use as source for creating the manifest; may be ' \
+                 'any common spreadsheet format')
+    apar.add_argument('-o','--output', type=str, metavar='MANIFEST',
+            help='the manifest CSV file to save; will be auto-named if not specified')
+
+    global pargs
+    pargs = apar.parse_args(argv)
+
+    spreads = read_spreadsheet(pargs.spreadsheet))
+    mapping = read_json(pargs.mapfile))
+
+
+def exec_command(cmd: str, shell: bool=False, redirect_stderr: bool=False):
+    """
+    Run the given command or shell commands.
+    args:
+        cmd: The command(s)
+        shell: If set to true, then the command will be shell interpreted
+        redirect_stderr: If set to true, then redirect stderr to stdout
+    returns:
+        tuple(int, list, list): Exit code, stdout lines as list, stderr lines as list
+    """
+    cmd = cmd if isinstance(cmd, list) else ([cmd] if shell else cmd.split())
+    stdout_tgt=subprocess.STDOUT if redirect_stderr else subprocess.PIPE
+    proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=stdout_tgt)
+    stdout, stderr = proc.communicate()
+    return proc.returncode, stdout.splitlines(), [] if not stderr else stderr.splitlines()
+
+def read_json(filename: str):
+    """
+    Attempt to load a JSON file and return the loaded results.
+    args:
+        filename: The file to load
+    returns:
+        any|None: The loaded JSON or None if the file could not be loaded.
+    """
+    loaded_json = None
+    try:
+        with open(filename) as jsf:
+            loaded_json = json.load(jsf)
+    except json.JSONDecodeError, OSError:
+        pass
+    return loaded_json
+
+def read_spreadsheet(filename: str, skip_rows: int=0):
+    """
+    Given an filename, attempt to read in the values from the spreadsheet.
+    If file is not a CSV, will attempt convert to a temporary CSV beforehand.
+    args:
+        filename: The file to read from
+        skip_rows: Number of header rows to skip
+    returns:
+        list(list)|None: A list of rows, each containing a list of cell values.
+                         Or None on failure.
+    """
+    loaded_csv = None
+    with tempfile.TemporaryDirectory() as tdir:
+        csv_filename = filename
+        ecode = 0
+        if not filename.lower().endswith(".csv"):
+            ecode, _, _ = exec_command([
+                "libreoffice", "--headless", "--infilter=CSV:44,34,76",
+                "--convert-to", "csv", filename, "--outdir", tdir
+            ])
+            csv_filename = os.path.join(
+                tdir,
+                os.path.splitext(os.path.basename(filename))[0] + ".csv"
+            )
+
+        if ecode == 0:
+            with open(csv_filename) as readcsv:
+                loaded_csv = [row for row in csv.reader(readcsv)]
+    return loaded_csv
+
+if __name__ == "__main__":
+    sys.exit(main())

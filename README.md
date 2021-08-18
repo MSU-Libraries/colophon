@@ -13,6 +13,10 @@ Before you can run Colophon, you will need the following:
 * A CSV listing of files to verify (the "manifest")
 * A configuration file of what tests to run (the "check config")
 
+TODO:
+* manifest contain expected files? flag to indicate file may exists or may not?
+* manifest contain expected file formats with expected attributes (resolution, bitrate, etc)
+
 ### How Colophon Runs
 Colophon will use a directory for maintaining the state and results
 of its work progress. Unless you specifiy a directory, it will create
@@ -24,6 +28,8 @@ For each manifest entry, Colophon will maintain a state of the tests run
 their output. Each script may create JSON data to be saved as well, for use
 in subsequent scripts. This extra data is called the "JSON results".
 
+### Generating a Manifest
+TODO `generate-manifest-from-spreadsheet`  
 
 ## Check Scripts
 Colophon works by running a set of check scripts against your file list.

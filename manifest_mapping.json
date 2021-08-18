@@ -1,0 +1,17 @@
+{
+    "startrow": 2,
+    "columns": [
+        {
+            "column": "b",
+            "manifest": "mediatype"
+        },
+        {
+            "column": "c",
+            "manifest": "filename"
+        },
+        {
+            "column": "f",
+            "manifest": "title"
+        }
+    ]
+}

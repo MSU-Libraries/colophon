@@ -177,7 +177,6 @@ main() {
     # Update JSON if provided
     if [[ -n "${ARGS[JSON]}" ]]; then
         verbose "Updating JSON file ${ARGS[ALGO]} with hash check results."
-        # jq ".\"verify-hash\" |= .+ [{stuff:1}]" my.json
         jq ".\"verify-hash\" |= .+ [{ \
                 algorithm: \"${ARGS[ALGO]}\", \
                 expected: \"${HASH_VERIFY}\", \
