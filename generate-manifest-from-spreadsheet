@@ -9,6 +9,12 @@ import tempfile
 
 # Dependencies: libreoffice-common
 
+def stderr(*args, **kwargs):
+    """
+    Like print(), but to stderr
+    """
+    print(*args, file=sys.stderr, **kwargs)
+
 def main(argv=None):
     apar = argparse.ArgumentParser(prog='generate-manifest-from-excel',
     description="""Create a colophon manifest from an Excel/CSV file
@@ -21,13 +27,47 @@ def main(argv=None):
                  'any common spreadsheet format')
     apar.add_argument('-o','--output', type=str, metavar='MANIFEST',
             help='the manifest CSV file to save; will be auto-named if not specified')
-
-    global pargs
     pargs = apar.parse_args(argv)
 
-    spreads = read_spreadsheet(pargs.spreadsheet))
-    mapping = read_json(pargs.mapfile))
+    spreads = read_spreadsheet(pargs.spreadsheet)
+    if not spreads:
+        stderr(f"Unable to read spreadsheet: {pargs.spreadsheet}")
+        sys.exit(1)
+    mapfile = read_json(pargs.mapfile)
+    if not mapfile:
+        stderr(f"Unable to read mapping file: {pargs.mapfile}")
+        sys.exit(1)
+    manifest_path = pargs.output if pargs.output else generate_manifest_filename(pargs.spreadsheet)
+    if not manifest_path:
+        stderr(f"Unable to identify location to safe manifest to. Try passing and --output flag.")
+        sys.exit(1)
 
+    #TODO
+
+def generate_manifest_filename(src_filename: str):
+    """
+    Create an unused filename based off a source filename to use
+    as a manifest CSV filename.
+    args:
+        src_filename: A filename for the manifest filename to look like
+    returns:
+        string|None: A full filepath to an unused CSV filename, or
+                     None if no filepath could be found.
+    """
+    dirname = os.path.dirname(os.path.realpath(src_filename))
+    filebase = os.path.basename(src_filename)
+    try:
+        filebase = os.path.splitext(filebase)[0]
+    except IndexError:
+        pass
+
+    manifest_path = None
+    for inc in range(0, 99):
+        apnd = f'_{inc}' * bool(inc)
+        manifest_path = os.path.join(dirname, filebase + apnd + '.csv')
+        if not os.path.exists(manifest_path):
+            break
+    return manifest_path
 
 def exec_command(cmd: str, shell: bool=False, redirect_stderr: bool=False):
     """
@@ -57,7 +97,7 @@ def read_json(filename: str):
     try:
         with open(filename) as jsf:
             loaded_json = json.load(jsf)
-    except json.JSONDecodeError, OSError:
+    except (json.JSONDecodeError, OSError, TypeError):
         pass
     return loaded_json
 
@@ -76,7 +116,7 @@ def read_spreadsheet(filename: str, skip_rows: int=0):
     with tempfile.TemporaryDirectory() as tdir:
         csv_filename = filename
         ecode = 0
-        if not filename.lower().endswith(".csv"):
+        if filename and not filename.lower().endswith(".csv"):
             ecode, _, _ = exec_command([
                 "libreoffice", "--headless", "--infilter=CSV:44,34,76",
                 "--convert-to", "csv", filename, "--outdir", tdir
@@ -86,7 +126,7 @@ def read_spreadsheet(filename: str, skip_rows: int=0):
                 os.path.splitext(os.path.basename(filename))[0] + ".csv"
             )
 
-        if ecode == 0:
+        if csv_filename and ecode == 0:
             with open(csv_filename) as readcsv:
                 loaded_csv = [row for row in csv.reader(readcsv)]
     return loaded_csv
