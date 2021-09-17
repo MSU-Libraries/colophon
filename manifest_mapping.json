@@ -1,17 +1,17 @@
 {
-    "startrow": 2,
+    "skiprows": 1,
     "columns": [
         {
             "column": "b",
-            "manifest": "mediatype"
+            "label": "mediatype"
         },
         {
             "column": "c",
-            "manifest": "filename"
+            "label": "filename"
         },
         {
             "column": "f",
-            "manifest": "title"
+            "label": "title"
         }
     ]
 }

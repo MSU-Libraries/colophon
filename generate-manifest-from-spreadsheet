@@ -6,6 +6,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import collections
 
 # Dependencies: libreoffice-common
 
@@ -25,24 +26,41 @@ def main(argv=None):
     apar.add_argument('-s','--spreadsheet', type=str, metavar='SPREADSHEET',
             help='a spreadsheet file to use as source for creating the manifest; may be ' \
                  'any common spreadsheet format')
+    apar.add_argument('-k','--skip', type=int, metavar='ROWS', default=None,
+            help='skip a number of rows from the start of the spreadsheet')
     apar.add_argument('-o','--output', type=str, metavar='MANIFEST',
             help='the manifest CSV file to save; will be auto-named if not specified')
     pargs = apar.parse_args(argv)
 
-    spreads = read_spreadsheet(pargs.spreadsheet)
+    mappings = read_json(pargs.mapfile)
+    if not mappings:
+        stderr(f"Unable to read mapping file: {pargs.mapfile}")
+        sys.exit(1)
+    default_skip = int(mappings['skiprows'] if 'skiprows' in mappings else 0)
+    spreads = read_spreadsheet(pargs.spreadsheet, pargs.skip if pargs.skip is not None else default_skip)
     if not spreads:
         stderr(f"Unable to read spreadsheet: {pargs.spreadsheet}")
-        sys.exit(1)
-    mapfile = read_json(pargs.mapfile)
-    if not mapfile:
-        stderr(f"Unable to read mapping file: {pargs.mapfile}")
         sys.exit(1)
     manifest_path = pargs.output if pargs.output else generate_manifest_filename(pargs.spreadsheet)
     if not manifest_path:
         stderr(f"Unable to identify location to safe manifest to. Try passing and --output flag.")
         sys.exit(1)
+    print(f"Generating {manifest_path} from {pargs.spreadsheet} using mappings from {pargs.mapfile}")
+    generate_manifest(spreads, mappings, manifest_path)
 
-    #TODO
+def generate_manifest(rows, mapping, outfile):
+    """
+    Loop over rows and write manifest CSV file using provided mapping
+    """
+    with open(outfile, 'w', newline='') as csvf:
+        csvout = csv.writer(csvf, quoting=csv.QUOTE_ALL)
+        # Write out the header row with labels from mapping file
+        csvout.writerow([col['label'] for col in mapping['columns']])
+
+        # Find column indices to pull
+        indices = [column_letter_to_index(col['column']) for col in mapping['columns']]
+        for row in rows:
+            csvout.writerow([row[idx] for idx in indices])
 
 def generate_manifest_filename(src_filename: str):
     """
@@ -96,7 +114,7 @@ def read_json(filename: str):
     loaded_json = None
     try:
         with open(filename) as jsf:
-            loaded_json = json.load(jsf)
+            loaded_json = json.load(jsf, object_pairs_hook=collections.OrderedDict)
     except (json.JSONDecodeError, OSError, TypeError):
         pass
     return loaded_json
@@ -129,7 +147,17 @@ def read_spreadsheet(filename: str, skip_rows: int=0):
         if csv_filename and ecode == 0:
             with open(csv_filename) as readcsv:
                 loaded_csv = [row for row in csv.reader(readcsv)]
+            loaded_csv = loaded_csv[skip_rows:]
     return loaded_csv
+
+def column_letter_to_index(letter):
+    """
+    Convert a spreadshet column letter into a 0 based
+    index number for columns.
+    E.g.
+        'a' => 0, 'b' => 1, 'z' => 25
+    """
+    return ord(letter) - 97
 
 if __name__ == "__main__":
     sys.exit(main())
