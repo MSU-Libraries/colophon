@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import csv
-import json
+import yaml
 import os
 import subprocess
 import sys
@@ -16,7 +16,7 @@ def stderr(*args, **kwargs):
     """
     print(*args, file=sys.stderr, **kwargs)
 
-def main(argv=None):
+def main():
     apar = argparse.ArgumentParser(prog='generate-manifest-from-excel',
     description="""Create a colophon manifest from an Excel/CSV file
     """)
@@ -30,9 +30,12 @@ def main(argv=None):
             help='skip a number of rows from the start of the spreadsheet')
     apar.add_argument('-o','--output', type=str, metavar='MANIFEST',
             help='the manifest CSV file to save; will be auto-named if not specified')
-    pargs = apar.parse_args(argv)
+    if len(sys.argv) == 1:
+        apar.print_help()
+        sys.exit(0)
+    pargs = apar.parse_args()
 
-    mappings = read_json(pargs.mapfile)
+    mappings = read_yaml(pargs.mapfile)
     if not mappings:
         stderr(f"Unable to read mapping file: {pargs.mapfile}")
         sys.exit(1)
@@ -103,21 +106,21 @@ def exec_command(cmd: str, shell: bool=False, redirect_stderr: bool=False):
     stdout, stderr = proc.communicate()
     return proc.returncode, stdout.splitlines(), [] if not stderr else stderr.splitlines()
 
-def read_json(filename: str):
+def read_yaml(filename: str):
     """
-    Attempt to load a JSON file and return the loaded results.
+    Attempt to load a YAML/JSON file and return the loaded results.
     args:
         filename: The file to load
     returns:
-        any|None: The loaded JSON or None if the file could not be loaded.
+        any|None: The loaded data object or None if the file could not be loaded.
     """
-    loaded_json = None
+    loaded_yaml = None
     try:
         with open(filename) as jsf:
-            loaded_json = json.load(jsf, object_pairs_hook=collections.OrderedDict)
-    except (json.JSONDecodeError, OSError, TypeError):
+            loaded_yaml = yaml.load(jsf, yaml.CLoader)
+    except (yaml.YAMLError, OSError, TypeError):
         pass
-    return loaded_json
+    return loaded_yaml
 
 def read_spreadsheet(filename: str, skip_rows: int=0):
     """
