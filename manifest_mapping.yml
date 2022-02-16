@@ -4,6 +4,6 @@ columns:
   - column: b
     label: mediatype
   - column: c
-    label: filename
+    label: basename
   - column: f
     label: title

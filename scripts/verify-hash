@@ -4,7 +4,7 @@
 
 runhelp() {
     echo ""
-    echo "Usage: verify-hash.sh"
+    echo "Usage: verify-hash [FLAGS]"
     echo ""
     echo "  Verify a file contents matches a given hash"
     echo ""
@@ -18,7 +18,7 @@ runhelp() {
     echo "  -a|--algo ALGO"
     echo "      The algorithm to use. E.g. md5, sha1, sha256, etc"
     echo "  -J|--json JSON"
-    echo "      A JSON results file from Colophon."
+    echo "      Write results to the file JSON."
     echo "  -v|--verbose"
     echo "      Display verbose output."
     echo ""

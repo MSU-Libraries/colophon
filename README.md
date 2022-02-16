@@ -50,11 +50,23 @@ A check script should write any failure or warning information to stderr instead
 of stdout. This will be logged separately in order to help assist with reviewing
 and media issues found.
 
+#### Results JSON
+Scripts may output results as JSON to a file. The results of the JSON file can
+add/overwrite fields for a given enty or ignore an entry from further processing.
+```
+# Add/update entry
+{ "field": "filename", "value": "ABC000123.wav" }
+
+# Remove field from entry
+{ "field": "extent", "value": null }
+
+# Remove entry from further processing
+{ "action": "ignore" }
+```
+
 ### File Modification
 A script must never modify a data file(s) that is being verified.
-
-A script may add new data to the JSON results for a file, but should not
-modify any data that was already in the JSON results.
+A script may add/modify/remove data from the JSON results.
 
 ### Exit Codes
 Colophon check scripts must have a standard exit code which indicates the result
@@ -65,11 +77,12 @@ where a non-`0` exit code was generated, you can refer to the script output
 for details.
 
 **Exit Codes**
-* `0` indicates that the script ran successfully and no issues were found.
-* `1` indicates that the check failed for some reason.
-* `2` indicates that the script ran, but warning messages were generated.
-* `3` indicates that the file(s) to check were missing or unreadable.
-* `4` indicates that the parameters passed to the script were incomplete or invalid.
+* `0`  indicates that the script ran successfully and no issues were found.
+* `1`  indicates that the check failed for some reason.
+* `2`  indicates that the check did NOT fail, but the entry should be ignored for future steps
+* `5`  indicates that the script ran, but warning messages were generated.
+* `9`  indicates that the file(s) to check were missing or unreadable.
+* `17` indicates that the parameters passed to the script were incomplete or invalid.
 
 When creating a check script at its simplest form, a script that returns
 either `0` or `1` will suffice.

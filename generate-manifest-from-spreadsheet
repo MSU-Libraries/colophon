@@ -62,8 +62,12 @@ def generate_manifest(rows, mapping, outfile):
 
         # Find column indices to pull
         indices = [column_letter_to_index(col['column']) for col in mapping['columns']]
-        for row in rows:
-            csvout.writerow([row[idx] for idx in indices])
+        try:
+            for row in rows:
+                csvout.writerow([row[idx] for idx in indices])
+        except IndexError as exc:
+            stderr("Spreadsheet does not have the columns specified in the manifest.")
+            raise exc
 
 def generate_manifest_filename(src_filename: str):
     """

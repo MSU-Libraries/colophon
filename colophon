@@ -1,4 +1,50 @@
 #!/usr/bin/env python3
+import os
+import sys
+import click
+import jinja2
+# Add current path to sys path for loading libraries
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))
 
-# If no JSON exists, create it
+@click.command
+@click.option('-m', '--manifest', required=True, type=str,
+    help="The file manifest as csv file; first row defines labels for each column")
+@click.option('-s', '--suite', required=True, type=str,
+    help="The suite file defining files to match and what stages to run")
+@click.option('-d', '--dir', 'sourcedir', required=True, type=str,
+    help="The directory in which to find files defined by the suite and manifest")
+@click.option('-w', '--workdir', type=str,
+    help="A directory where to store temp files and results")
+@click.option('-v', '--verbose', is_flag=True
+    help="Provide details output while running")
+@click.option('-q', '--quiet', is_flag=True
+    help="Suppress output while running")
+def main(manifest, suite, sourcedir, workdir, verbose, quiet):
+    """Colophon - File Quality Control Validator"""
+    # Manifest exists and is loadable
+    # Suite file exists and is loadable
+    # Source dir exists and is readable
 
+    # TODO Create output dir if not provided
+    # out/
+    # out/manifest_row/state.json   # combined results
+    # out/manifest_row/stage1.log
+    # out/manifest_row/stage1.err
+    # out/manifest_row/stage1.json  # results from stage1
+
+    # TODO Populate state with list of files in directory (unassociated at first)
+
+    # TODO Loop over manifest
+
+    # TODO For each manifest row, process stages of suite (should associate files)
+
+    # TODO Each script runs, resulting in output if successful
+
+    # TODO Create report of successes
+
+    # TODO Create report of failures
+
+    # TODO Create report of unassociated files
+
+if __name__ == "__main__":
+    sys.exit(main())
