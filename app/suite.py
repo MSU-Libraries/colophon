@@ -17,6 +17,7 @@ class Suite:
             self.load()
 
     def load(self, filepath=None):
+        """Load and validate the suite file"""
         self.filepath = filepath if filepath else self.filepath
         self.suite = None
         try:

@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import os
 import sys
+import tempfile
+import logging
 import click
 import jinja2
 import app
@@ -23,32 +25,47 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 def main(manifest, suite, sourcedir, workdir, verbose, quiet):
     """Colophon - File Quality Control Validator"""
     # Manifest exists and is loadable
-    manfifest = app.Manifest(manifest)
+    app.manifest = app.Manifest(manifest)
     # Suite file exists and is loadable
-    suite = app.Suite(suite)
+    app.suite = app.Suite(suite)
     # Source dir exists and is readable
-    sourcedir = app.Directory(sourcedir)
+    app.sourcedir = app.Directory(sourcedir)
 
-    # TODO Create output dir if not provided
-    # out/
-    # out/manifest_row/state.json   # combined results
-    # out/manifest_row/stage1.log
-    # out/manifest_row/stage1.err
-    # out/manifest_row/stage1.json  # results from stage1
+    # Create output dir if not provided
+    if workdir is not None:
+        app.workdir = os.path.abspath(workdir)
+        check_wdir = app.Directory(app.workdir)
+        if len(check_wdir) != 0:
+            raise app.ColophonException("Work directory is not empty: {workdir}")
+    else:
+        app.workdir = tempfile.mkdtemp()
 
-    # TODO Populate state with list of files in directory (unassociated at first)
+    # Configure logging
+    logging.basicConfig(
+        filename=os.path.join(app.workdir, 'colophon.log'),
+        encoding='utf-8',
+        level=logging.DEBUG
+    )
+    app.logger = logging.getLogger()
 
-    # TODO Loop over manifest
+    # Populate state with list of files in directory (unassociated at first)
+    for fpath, finfo in app.sourcedir:
+        app.state.add(fpath)
 
-    # TODO For each manifest row, process stages of suite (should associate files)
+    # For each manifest row, process stages of suite (should associate files)
+    for row in app.manifest:
+        #TODO
+        print(f"{x}")
 
-    # TODO Each script runs, resulting in output if successful
+    # TODO Each script runs, resulting in output if successful (output, stdout, stderr all saved to disk)
 
     # TODO Create report of successes
 
     # TODO Create report of failures
 
     # TODO Create report of unassociated files
+
+    # TODO Save final state to disk
     return 0
 
 if __name__ == "__main__":
