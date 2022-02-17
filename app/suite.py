@@ -21,7 +21,7 @@ class Suite:
         self.suite = None
         try:
             with open(self.filepath) as mffile:
-                self.manifest = yaml.load(mffile, Loader=yaml.CLoader)
+                self.suite = yaml.load(mffile, Loader=yaml.CLoader)
         except FileNotFoundError:
             raise app.ColophonException(f"Unable to open suite - file missing: {self.filepath}") from None
         except yaml.parser.ParseError:

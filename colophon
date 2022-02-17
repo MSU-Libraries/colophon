@@ -3,10 +3,11 @@ import os
 import sys
 import click
 import jinja2
+import app
 # Add current path to sys path for loading libraries
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-@click.command
+@click.command()
 @click.option('-m', '--manifest', required=True, type=str,
     help="The file manifest as csv file; first row defines labels for each column")
 @click.option('-s', '--suite', required=True, type=str,
@@ -15,15 +16,18 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__))
     help="The directory in which to find files defined by the suite and manifest")
 @click.option('-w', '--workdir', type=str,
     help="A directory where to store temp files and results")
-@click.option('-v', '--verbose', is_flag=True
+@click.option('-v', '--verbose', is_flag=True,
     help="Provide details output while running")
-@click.option('-q', '--quiet', is_flag=True
+@click.option('-q', '--quiet', is_flag=True,
     help="Suppress output while running")
 def main(manifest, suite, sourcedir, workdir, verbose, quiet):
     """Colophon - File Quality Control Validator"""
     # Manifest exists and is loadable
+    manfifest = app.Manifest(manifest)
     # Suite file exists and is loadable
+    suite = app.Suite(suite)
     # Source dir exists and is readable
+    sourcedir = app.Directory(sourcedir)
 
     # TODO Create output dir if not provided
     # out/
@@ -45,6 +49,7 @@ def main(manifest, suite, sourcedir, workdir, verbose, quiet):
     # TODO Create report of failures
 
     # TODO Create report of unassociated files
+    return 0
 
 if __name__ == "__main__":
     sys.exit(main())

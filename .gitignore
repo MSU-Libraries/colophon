@@ -3,3 +3,4 @@
 *.xlsx
 *.csv
 __pycache__
+example_*
