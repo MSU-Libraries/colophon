@@ -58,9 +58,10 @@ def main(manifest, suite, sourcedir, workdir, verbose, quiet):
             print("Failures found for {entry}")
 
     # For each manifest row, run scripts from stages
+    from pprint import pprint
     for entry in app.manifest:
         # TODO Capture output (output, stdout, stderr, JSON) all saved to disk
-        print(f"{entry}")
+        pprint(dict(entry))
 
     # TODO Create report of successes
 

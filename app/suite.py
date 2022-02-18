@@ -17,8 +17,6 @@ def value_match(value: str, conditions: dict, context: dict = {}):
     ignorecase = conditions.get('ignorecase', False)
     def prep(string):
         """Preprocess string before comparison"""
-        print(f"Render string : {string}")
-        print(f"Render context: {context}")
         string = render_template_string(string, context)
         return string.lower() if ignorecase else string
 
@@ -30,7 +28,7 @@ def value_match(value: str, conditions: dict, context: dict = {}):
         elif ckey == 'endswith':
             matched &= prep(value).endswith(prep(cval))
         elif ckey == 'regex':
-            matched &= re.search(cval, value, re.IGNORECASE if ignorecase else 0) is not None
+            matched &= re.search(cval, prep(value), re.IGNORECASE if ignorecase else 0) is not None
     return matched
 
 class Suite:
@@ -89,13 +87,14 @@ class Suite:
         """
         file_matches = self.suite['manifest']['files']
         failures = 0
-        tolower = lambda val, low: val.lower() if low else val
         for fmat in file_matches:
             value = fmat.get('value', '{{ file.name }}')
             files_found = 0
             for fpath, fentry in app.sourcedir:
-                context = {**rowmap, **{'file': fentry}}
+                context = {**rowmap, **{'file': dict(fentry)}}
                 if value_match(value, fmat, context):
+                    # TODO if multple allowed, then this must be a list
+                    # TODO
                     # set label in manifest
                     rowmap[fmat['label']] = fpath
                     # mark file as associated

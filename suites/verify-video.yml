@@ -11,22 +11,22 @@ manifest:
     - label: pres
       # value: "{{ file.name }}"    # Default for files section
       startswith: "{{ basename }}"
-      regex: '(?:_pres.mov|.mkv)$'
+      regex: '(?:_pres\.mov|\.mkv)$'
     - label: mezz
       startswith: "{{ basename }}"
-      regex: '(?<!_pres).mov$'
+      regex: '(?<!_pres)\.mov$'
     - label: access
       startswith: "{{ basename }}"
-      regex: '(?:_access.mov|.mp4)$'
+      regex: '(?:_access\.mov|\.mp4)$'
     - label: pres_hash
       startswith: "{{ basename }}"
-      regex: '(?:_pres.mov|.mkv).md5$'
+      regex: '(?:_pres\.mov|\.mkv)\.md5$'
     - label: mezz_hash
       startswith: "{{ basename }}"
-      regex: '(?<!_pres).mov.md5$'
+      regex: '(?<!_pres)\.mov\.md5$'
     - label: access_hash
       startswith: "{{ basename }}"
-      regex: '(?:_access.mov|.mp4).md5$'
+      regex: '(?:_access\.mov|\.mp4)\.md5$'
     - label: mods
       startswith: "{{ basename }}"
       endswith: '_MODS.xml'
