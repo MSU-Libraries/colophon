@@ -9,6 +9,30 @@ import app
 from app.template import render_template_string
 from schemas import suite
 
+def value_match(value: str, conditions: dict, context: dict = {}):
+    """
+    Check if the value meets all passed conditions
+    """
+    matched = True
+    ignorecase = conditions.get('ignorecase', False)
+    def prep(string):
+        """Preprocess string before comparison"""
+        print(f"Render string : {string}")
+        print(f"Render context: {context}")
+        string = render_template_string(string, context)
+        return string.lower() if ignorecase else string
+
+    for ckey, cval in conditions.items():
+        if ckey == 'equals':
+            matched &= prep(value) == prep(cval)
+        elif ckey == 'startswith':
+            matched &= prep(value).startswith(prep(cval))
+        elif ckey == 'endswith':
+            matched &= prep(value).endswith(prep(cval))
+        elif ckey == 'regex':
+            matched &= re.search(cval, value, re.IGNORECASE if ignorecase else 0) is not None
+    return matched
+
 class Suite:
     """
     The Suite interface
@@ -47,60 +71,43 @@ class Suite:
         """
         filters = self.suite['manifest']['filter'] if 'filter' in self.suite['manifest'] else []
         filtered = False
-        tolower = lambda val, low: val.lower() if low else val
         for filt in filters:
-            colval, re_flags, low = rowmap[filt['label']], 0, False
-            if 'ignorecase' in filt and filt['ignorecase']:
-                colval, re_flags, low = colval.lower(), re.IGNORECASE, True
-
-            if 'equals' in filt and colval != tolower(filt['equals'], low):
-                filtered = True
-                break
-            if 'startswith' in filt and not colval.startswith(tolower(filt['startswith'])):
-                filtered = True
-                break
-            if 'endswith' in filt and not colval.endswith(tolower(filt['endswith'])):
-                filtered = True
-                break
-            if 'regex' in filt and not re.search(filt['regex'], colval, re_flags):
+            if not value_match(rowmap[filt['value']], filt, rowmap):
                 filtered = True
                 break
         return filtered
 
-    def label_files(self, rowmap: dict, dirfiles: app.Directory) -> int:
+    def label_files(self, rowmap: dict) -> int:
         """
-        Given a manifest row and loaded Directory of files, find matching files from and label them
-        into them manifest.
+        Given a manifest row and having already loaded a Directory of files, this finds
+        matching files from and label them into them manifest.
         Will mark them as associated in the Directory if labeled.
-        TODO !! what if already associated
-        TODO !! handle required/optional
-        TODO !! handle single/multiple
         args:
             rowmap: A row mapping (of header: value) from the manifest
-            dirfiles: An instance of Direcory with files already loaded
         returns:
             A count of the number of failures to match/label files, or 0 if no failures
         """
         file_matches = self.suite['manifest']['files']
         failures = 0
         tolower = lambda val, low: val.lower() if low else val
-        for finfo in dirfiles:
-            for fmat in file_matches:
-                label = fmat['label']
-                re_flags, low = 0, False
-                if 'ignorecase' in filt and filt['ignorecase']:
-                    re_flags, low = re.IGNORECASE, True
-
-                if 'equals' in filt and finfo['name'] != tolower(filt['equals'], low):
-                    filtered = True
-                    break
-                if 'startswith' in filt and not finfo['name'].startswith(tolower(filt['startswith'])):
-                    filtered = True
-                    break
-                if 'endswith' in filt and not finfo['name'].endswith(tolower(filt['endswith'])):
-                    filtered = True
-                    break
-                if 'regex' in filt and not re.search(filt['regex'], finfo['name'], re_flags):
-                    filtered = True
-                    break
+        for fmat in file_matches:
+            value = fmat.get('value', '{{ file.name }}')
+            files_found = 0
+            for fpath, fentry in app.sourcedir:
+                context = {**rowmap, **{'file': fentry}}
+                if value_match(value, fmat, context):
+                    # set label in manifest
+                    rowmap[fmat['label']] = fpath
+                    # mark file as associated
+                    if fentry.associated:
+                        # TODO log more info
+                        raise app.ColophonException(f"File matched on {dict(rowmap)}, but was already associated: {fpath}")
+                    fentry.associated = True
+                    files_found += 1
+            if files_found == 0 and not fmat.get('optional', False):
+                #TODO log and failures += 1
+                raise app.ColophonException(f"No file matched on {dict(rowmap)} for {fmat}")
+            if files_found > 1 and not fmat.get('multiple', False):
+                #TODO log and failures += 1
+                raise app.ColophonException(f"Multiple files matched on {dict(rowmap)} for {fmat}")
         return failures

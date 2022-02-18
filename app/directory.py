@@ -36,7 +36,7 @@ class FileInfo(MutableMapping):
         del self.file[key]
 
     def __repr__(self):
-        return f"FileInfo({os.path.join(self.path, self.filename)}, size={self.size}, associated={self.associated})"
+        return f"FileInfo({os.path.join(self.file['path'], self.file['name'])}, size={self.file['size']}, associated={self.associated})"
 
 class Directory:
     """

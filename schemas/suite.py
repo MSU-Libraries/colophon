@@ -3,10 +3,8 @@ The schema for suite files
 """
 from copy import deepcopy
 _label_match = {
-    'label': {
-        'required': True,
-        'type': 'string'
-    },
+    'label': { 'type': 'string' },
+    'value': { 'type': 'string' },
     'equals': { 'type': 'string' },
     'startswith': { 'type': 'string' },
     'endswith': { 'type': 'string' },

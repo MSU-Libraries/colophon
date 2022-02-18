@@ -10,5 +10,5 @@ def render_template_string(string: str, context: dict) -> str:
         The rendered string
     """
     env = jinja2.Environment()
-    tmpl = env.from_string(string)
+    templ = env.from_string(string)
     return templ.render(context)

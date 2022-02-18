@@ -54,9 +54,13 @@ def main(manifest, suite, sourcedir, workdir, verbose, quiet):
 
     # For each manifest row with all files found/associated, process the stages of suite
     for entry in app.manifest:
-        #TODO
+        if app.suite.label_files(entry):
+            print("Failures found for {entry}")
+
+    # For each manifest row, run scripts from stages
+    for entry in app.manifest:
+        # TODO Capture output (output, stdout, stderr, JSON) all saved to disk
         print(f"{entry}")
-        # TODO Each script runs, resulting in output if successful (output, stdout, stderr all saved to disk)
 
     # TODO Create report of successes
 
