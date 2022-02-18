@@ -8,6 +8,8 @@ import app
 class StateEntry:
     """Single state entry"""
     def __init__(self):
+        # Filtered entries are to be ignored
+        self.filtered = False
         self.associated = False
 
 class State:

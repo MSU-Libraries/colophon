@@ -8,10 +8,10 @@ _label_match = {
         'type': 'string'
     },
     'equals': { 'type': 'string' },
-    'matches': { 'type': 'string' },
     'startswith': { 'type': 'string' },
     'endswith': { 'type': 'string' },
-    'regex': { 'type': 'string' }
+    'regex': { 'type': 'string' },
+    'ignorecase': { 'type': 'boolean' }
 }
 _file_match = deepcopy(_label_match)
 _file_match.update(

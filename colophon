@@ -52,12 +52,16 @@ def main(manifest, suite, sourcedir, workdir, verbose, quiet):
     for fpath, finfo in app.sourcedir:
         app.state.add(fpath)
 
-    # For each manifest row, process stages of suite (should associate files)
+    # Pass manifest through suite (should associate files)
+    #for row in app.manifest:
+    #    app.suite
+        # TODO
+
+    # For each manifest row, process the stages of suite
     for row in app.manifest:
         #TODO
-        print(f"{x}")
-
-    # TODO Each script runs, resulting in output if successful (output, stdout, stderr all saved to disk)
+        print(f"{row}")
+        # TODO Each script runs, resulting in output if successful (output, stdout, stderr all saved to disk)
 
     # TODO Create report of successes
 
