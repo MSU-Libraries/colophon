@@ -9,6 +9,7 @@ manifest:
   # For each manifest row, match the following files
   files:
     - label: pres
+      # value: "{{ file.name }}"    # Default
       startswith: "{{ basename }}"
       regex: '(?:_pres.mov|.mkv)$'
     - label: mezz

@@ -1,4 +1,4 @@
-# Colophon: Media Validation Toon
+# Colophon: File Quality Control Validator
 
 TODO what is this?
 
@@ -87,3 +87,17 @@ for details.
 When creating a check script at its simplest form, a script that returns
 either `0` or `1` will suffice.
 
+## Template String
+Colophon makes use of Jinja2 template rendering for value strings in
+suite files.
+
+Depending on the context, different variables may be available within
+the template render context.
+
+`manifest.files`
+The following variables are available
+ - `file.name`: The full name of the file (no path)
+ - `file.path`: The full path of the file
+ - `file.base`: The name of the file without its extension
+ - `file.ext`: The file extension (no leading period)
+ - `file.size`: The size of the file in bytes

@@ -48,19 +48,14 @@ def main(manifest, suite, sourcedir, workdir, verbose, quiet):
     )
     app.logger = logging.getLogger()
 
-    # Populate state with list of files in directory (unassociated at first)
-    for fpath, finfo in app.sourcedir:
-        app.state.add(fpath)
+    # Pass manifest through suite to filter out rows
+    for entry in app.manifest:
+        entry.filtered = app.suite.filter(entry)
 
-    # Pass manifest through suite (should associate files)
-    #for row in app.manifest:
-    #    app.suite
-        # TODO
-
-    # For each manifest row, process the stages of suite
-    for row in app.manifest:
+    # For each manifest row with all files found/associated, process the stages of suite
+    for entry in app.manifest:
         #TODO
-        print(f"{row}")
+        print(f"{entry}")
         # TODO Each script runs, resulting in output if successful (output, stdout, stderr all saved to disk)
 
     # TODO Create report of successes
