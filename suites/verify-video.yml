@@ -37,12 +37,20 @@ manifest:
       regex: '_Asset.+\.tif$'
 
 stages:
-  # Run a file hash check
-  stage1:
-    script: "scripts/verify-hash -c {{ filename }}"
+  # Run access hash check
+  stage1.1:
+    script: "scripts/verify-hash -c {{ access }} -f {{ access_hash }} -v"
+  # Run mezzanine hash check
+  stage1.2:
+    script: "scripts/verify-hash -c {{ mess }} -f {{ mezz_hash }} -v"
+  # Run preservation hash check
+  stage1.3:
+    script: "scripts/verify-hash -c {{ pres }} -f {{ pres_hash }} -v"
 
   # Verify file fingerprint
-  stage2:
+  stage2.1:
     script: "sleep 1"
 
   # Verify video frames
+  stage3.1:
+    script: "sleep 1"

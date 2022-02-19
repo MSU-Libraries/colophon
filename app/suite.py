@@ -89,24 +89,29 @@ class Suite:
         failures = 0
         for fmat in file_matches:
             value = fmat.get('value', '{{ file.name }}')
+            optional = fmat.get('optional', False)
+            multiple = fmat.get('multiple', False)
+            label = fmat['label']
+            rowmap[label] = [] if multiple else None
             files_found = 0
             for fpath, fentry in app.sourcedir:
                 context = {**rowmap, **{'file': dict(fentry)}}
                 if value_match(value, fmat, context):
-                    # TODO if multple allowed, then this must be a list
-                    # TODO
                     # set label in manifest
-                    rowmap[fmat['label']] = fpath
+                    if multiple:
+                        rowmap[label].append(fpath)
+                    else:
+                        rowmap[label] = fpath
                     # mark file as associated
                     if fentry.associated:
                         # TODO log more info
                         raise app.ColophonException(f"File matched on {dict(rowmap)}, but was already associated: {fpath}")
                     fentry.associated = True
                     files_found += 1
-            if files_found == 0 and not fmat.get('optional', False):
+            if files_found == 0 and not optional:
                 #TODO log and failures += 1
                 raise app.ColophonException(f"No file matched on {dict(rowmap)} for {fmat}")
-            if files_found > 1 and not fmat.get('multiple', False):
+            if files_found > 1 and not multiple:
                 #TODO log and failures += 1
                 raise app.ColophonException(f"Multiple files matched on {dict(rowmap)} for {fmat}")
         return failures

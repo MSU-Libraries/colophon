@@ -59,6 +59,8 @@ default_args() {
 
 # Parse command arguments
 parse_args() {
+    ALLOWED_ALGOS=( md5 sha1 sha224 sha256 sha384 sha512 )
+
     # Parse flag arguments
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -86,7 +88,6 @@ parse_args() {
             ;;
         -a|--algo)
             ARGS[ALGO]="$2"
-            ALLOWED_ALGOS=( md5 sha1 sha224 sha256 sha384 sha512 )
             if ! array_contains ALLOWED_ALGOS "${ARGS[ALGO]}"; then
                 stderr "Unsupported hash algorithm: $2. Supported: ${ALLOWED_ALGOS[*]}"
                 exit 4
@@ -114,12 +115,23 @@ parse_args() {
 
     required_flags
 
+    # Check file and hash algo provided, but no hash file; auto check for hash file
     if [[ -z "${ARGS[HASH_STR]}" && -z "${ARGS[HASH_FILE]}" ]]; then
         ARGS[HASH_FILE]="${ARGS[CHECK_FILE]}.${ARGS[ALGO]}"
         if [[ -f "${ARGS[HASH_FILE]}" ]]; then
             verbose "No hash source provided. Assuming: ${ARGS[HASH_FILE]}"
         else
             stderr "No hash source provided."
+            exit 4
+        fi
+    fi
+
+    # Check file and hash file provided, but no algo; auto check for hash algo
+    if [[ -n "${ARGS[HASH_FILE]}" && -z "${ARGS[ALGO]}" ]]; then
+        ARGS[ALGO]="${ARGS[HASH_FILE]##*.}"
+        verbose "No algorithm provided. Trying extension from: ${ARGS[HASH_FILE]}"
+        if ! array_contains ALLOWED_ALGOS "${ARGS[ALGO]}"; then
+            stderr "Unsupported hash algorithm: ${ARGS[ALGO]}. Supported: ${ALLOWED_ALGOS[*]}"
             exit 4
         fi
     fi
@@ -137,7 +149,7 @@ stderr() {
 }
 
 required_flags() {
-    REQUIRED=( CHECK_FILE ALGO )
+    REQUIRED=( CHECK_FILE )
     for REQ in "${REQUIRED[@]}"; do
         if [[ -z "${ARGS[$REQ]}" ]]; then
             stderr "Failure: Missing required flag --${REQ,,}"
