@@ -31,6 +31,18 @@ def value_match(value: str, conditions: dict, context: dict = {}):
             matched &= re.search(cval, prep(value), re.IGNORECASE if ignorecase else 0) is not None
     return matched
 
+class SuiteStage:
+    """A Stage within the suite"""
+    def __init__(self, name, stage):
+        self.name = name
+        self.raw_script = stage['script']
+
+    def script(self, context):
+        return render_template_string(self.raw_script, {**context, **app.globalctx}, shell=True)
+
+    def __repr__(self):
+        return f"SuiteStage({self.name}, script={self.raw_script})"
+
 class Suite:
     """
     The Suite interface
@@ -46,8 +58,8 @@ class Suite:
         self.filepath = filepath if filepath else self.filepath
         self.suite = None
         try:
-            with open(self.filepath) as mffile:
-                self.suite = yaml.load(mffile, Loader=yaml.CLoader)
+            with open(self.filepath) as mf_file:
+                self.suite = yaml.load(mf_file, Loader=yaml.CLoader)
         except FileNotFoundError:
             raise app.ColophonException(f"Unable to open suite - file missing: {self.filepath}") from None
         except yaml.parser.ParseError:
@@ -115,3 +127,8 @@ class Suite:
                 #TODO log and failures += 1
                 raise app.ColophonException(f"Multiple files matched on {dict(rowmap)} for {fmat}")
         return failures
+
+    def stages(self):
+        """Iterate and return SuiteStage instances for each stage"""
+        for name in self.suite['stages']:
+            yield SuiteStage(name, self.suite['stages'][name])

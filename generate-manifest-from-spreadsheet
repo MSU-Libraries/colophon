@@ -94,19 +94,19 @@ def generate_manifest_filename(src_filename: str):
             break
     return manifest_path
 
-def exec_command(cmd: str, shell: bool=False, redirect_stderr: bool=False):
+def exec_command(cmd: str|list, shell: bool=False, redirect_stderr: bool=False):
     """
     Run the given command or shell commands.
     args:
-        cmd: The command(s)
+        cmd: The command and arguments
         shell: If set to true, then the command will be shell interpreted
         redirect_stderr: If set to true, then redirect stderr to stdout
     returns:
         tuple(int, list, list): Exit code, stdout lines as list, stderr lines as list
     """
     cmd = cmd if isinstance(cmd, list) else ([cmd] if shell else cmd.split())
-    stdout_tgt=subprocess.STDOUT if redirect_stderr else subprocess.PIPE
-    proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=stdout_tgt)
+    stderr_tgt=subprocess.STDOUT if redirect_stderr else subprocess.PIPE
+    proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=stderr_tgt)
     stdout, stderr = proc.communicate()
     return proc.returncode, stdout.splitlines(), [] if not stderr else stderr.splitlines()
 

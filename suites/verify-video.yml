@@ -39,18 +39,18 @@ manifest:
 stages:
   # Run access hash check
   stage1.1:
-    script: "scripts/verify-hash -c {{ access }} -f {{ access_hash }} -v"
+    script: "scripts/verify-hash -c {{ access }} -f {{ access_hash }} -v -J {{ results_path }}"
   # Run mezzanine hash check
   stage1.2:
-    script: "scripts/verify-hash -c {{ mess }} -f {{ mezz_hash }} -v"
+    script: "scripts/verify-hash -c {{ mezz }} -f {{ mezz_hash }} -v -J {{ results_path }}"
   # Run preservation hash check
   stage1.3:
-    script: "scripts/verify-hash -c {{ pres }} -f {{ pres_hash }} -v"
+    script: "scripts/verify-hash -c {{ pres }} -f {{ pres_hash }} -v -J {{ results_path }}"
 
   # Verify file fingerprint
   stage2.1:
-    script: "sleep 1"
+    script: "echo TODO"
 
   # Verify video frames
   stage3.1:
-    script: "sleep 1"
+    script: "echo TODO"

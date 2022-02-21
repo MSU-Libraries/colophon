@@ -3,6 +3,7 @@ import os
 import sys
 import tempfile
 import logging
+import json
 import click
 import jinja2
 import app
@@ -36,7 +37,7 @@ def main(manifest, suite, sourcedir, workdir, verbose, quiet):
         app.workdir = os.path.abspath(workdir)
         check_wdir = app.Directory(app.workdir)
         if len(check_wdir) != 0:
-            raise app.ColophonException("Work directory is not empty: {workdir}")
+            raise app.ColophonException(f"Work directory is not empty: {workdir}")
     else:
         app.workdir = tempfile.mkdtemp()
 
@@ -48,6 +49,12 @@ def main(manifest, suite, sourcedir, workdir, verbose, quiet):
     )
     app.logger = logging.getLogger()
 
+    # Populate results JSON with empty dict
+    results_path = os.path.join(app.workdir, 'results.json')
+    with open(results_path, 'w') as results_file:
+        json.dump({}, results_file)
+    app.globalctx['results_path'] = results_path
+
     # Pass manifest through suite to filter out rows
     for entry in app.manifest:
         entry.filtered = app.suite.filter(entry)
@@ -55,13 +62,24 @@ def main(manifest, suite, sourcedir, workdir, verbose, quiet):
     # For each manifest row with all files found/associated, process the stages of suite
     for entry in app.manifest:
         if app.suite.label_files(entry):
-            print("Failures found for {entry}")
+            print(f"Failures found for {entry}")
+            sys.exit(1) # TODO
 
     # For each manifest row, run scripts from stages
-    from pprint import pprint
     for entry in app.manifest:
-        # TODO Capture output (output, stdout, stderr, JSON) all saved to disk
-        pprint(dict(entry))
+        if entry.filtered:
+            continue
+
+        for stage in app.suite.stages():
+            stage_dir = os.path.join(app.workdir, stage.name)
+            ready_script = stage.script(entry)
+            app.logger.debug(f"Running script: {ready_script}")
+            rcode, stdout, stderr = app.exec_command(ready_script, shell=True)
+            app.logger.debug(f"Script exited with code: {rcode}")
+            app.write_output(stage_dir, stdout, stderr)
+            if rcode != 0:
+                print(f"Script exited with code: {rcode}")
+                sys.exit(1) # TODO
 
     # TODO Create report of successes
 

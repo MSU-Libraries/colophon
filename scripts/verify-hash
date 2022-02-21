@@ -65,6 +65,7 @@ parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
         -c|--check-file)
+            verbose "$2"
             ARGS[CHECK_FILE]="$( readlink -f $2 )"
             if [[ $? -ne 0 || ! -f "${ARGS[CHECK_FILE]}" ]]; then
                 stderr "File to check does not exist: $2"
@@ -188,8 +189,9 @@ main() {
 
     # Update JSON if provided
     if [[ -n "${ARGS[JSON]}" ]]; then
-        verbose "Updating JSON file ${ARGS[ALGO]} with hash check results."
+        verbose "Updating JSON file ${ARGS[JSON]} with hash check results."
         jq ".\"verify-hash\" |= .+ [{ \
+                filepath: \"${ARGS[CHECK_FILE]}\", \
                 algorithm: \"${ARGS[ALGO]}\", \
                 expected: \"${HASH_VERIFY}\", \
                 computed: \"${HASH_CHECK}\", \
