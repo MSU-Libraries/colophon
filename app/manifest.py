@@ -10,9 +10,9 @@ import app
 class ManifestEntry(MutableMapping):
     def __init__(self, headers, values):
         # Filtered entries are to be ignored
-        self.filtered = False
-        # A failure occurred for this entry
-        self.failed = False
+        self.filtered: bool = False
+        # Failure messages should any failures occur for this entry
+        self.failures: list = []
         self.rowmap = dict(zip(headers, values))
 
     def __iter__(self):
@@ -38,7 +38,7 @@ class ManifestEntry(MutableMapping):
 
 class Manifest(MutableSequence):
     """
-    The Manifest file interface
+    The Manifest file wrapper
     """
     def __init__(self, filepath: str=None):
         self.filepath = None

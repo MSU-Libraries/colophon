@@ -47,7 +47,7 @@ class SuiteStage:
 
 class Suite:
     """
-    The Suite interface
+    The Suite file wrapper
     """
     def __init__(self, filepath: str=None):
         self.filepath = None
@@ -99,9 +99,8 @@ class Suite:
 
     def label_files(self, entry: ManifestEntry) -> tuple[int,int]:
         """
-        Given a manifest row and having already loaded a Directory of files, this finds
-        matching files from and label them into them manifest.
-        Will mark them as associated in the Directory if labeled.
+        Given a manifest row, perform matches for all 'manifest.files' entries
+        from the suite.
         args:
             entry: The entry find label matches for
         returns:
@@ -110,46 +109,63 @@ class Suite:
               - A count of the number of failures to match files
         """
         file_matches = self.suite['manifest']['files']
-        total_files, failures = 0, 0
-        for fmat in file_matches:
-            value = fmat.get('value', '{{ file.name }}')
-            optional = fmat.get('optional', False)
-            multiple = fmat.get('multiple', False)
-            label = fmat['label']
-            entry[label] = [] if multiple else None
-            files_found = []
-            for fpath, fentry in app.sourcedir:
-                context = {**entry, **{'file': dict(fentry)}}
-                if value_match(value, fmat, context):
-                    files_found.append(fentry.filepath)
-                    # set label in manifest
-                    if multiple:
-                        entry[label].append(fpath)
-                    else:
-                        entry[label] = fpath
-                    # mark file as associated
-                    if fentry.associated:
-                        failures += 1
-                        app.logger.error(
-                            f"Manifest(id={self.manifest_id(entry)} matched a file, but was already associated: {fpath}"
-                        )
-                        break
-                    fentry.associated = True
-            if len(files_found) == 0 and not optional:
-                failures += 1
-                app.logger.error(
-                    f"Manifest(id={self.manifest_id(entry)} was required to match a file "
-                    f"for label {label}, but no matching files were found."
-                )
-            if len(files_found) > 1 and not multiple:
-                failures += 1
-                app.logger.error(
-                    f"Manifest(id={self.manifest_id(entry)} matched muliple files for "
-                    f"{label} where only a single file match was allowed:"
-                    "\n - " + "\n - ".join(files_found)
-                )
-            total_files += len(files_found)
-        return total_files, failures
+        total_files, total_failures = 0, 0
+        for fmatch in file_matches:
+            file_count, failures = self._match_label_files(entry, fmatch)
+            total_files += file_count
+            total_failures += failures
+        return total_files, total_failures
+
+    def _match_label_files(self, entry: ManifestEntry, fmatch: dict) -> tuple[int,int]:
+        """
+        Given a manifest row entry and having already loaded a Directory of files,
+        this finds matching file(s) for a single suite 'manifest.files' entry and then
+        adds the label for the match into them manifest with the associated file(s).
+        Marks any associated files as such in the Directory once labeled.
+        args:
+            entry: The entry find a match for
+            fmatch: A file match entry from the suite's manifest.files
+        returns:
+            A tuple containing:
+              - A count of matched files
+              - A count of the number of failures encountered
+        """
+        optional = fmatch.get('optional', False)
+        multiple = fmatch.get('multiple', False)
+        label = fmatch['label']
+        entry[label] = [] if multiple else None
+        files, failures = [], 0
+        for fpath, fentry in app.sourcedir:
+            context = {**entry, **{'file': dict(fentry)}}
+            if value_match(fmatch.get('value', '{{ file.name }}'), fmatch, context):
+                files.append(fentry.filepath)
+                # set label in manifest
+                if multiple:
+                    entry[label].append(fpath)
+                else:
+                    entry[label] = fpath
+                # mark file as associated
+                if fentry.associated:
+                    failures += 1
+                    app.logger.error(
+                        f"Manifest(id={self.manifest_id(entry)} matched a file, but was already associated: {fpath}"
+                    )
+                    break
+                fentry.associated = True
+        if len(files) == 0 and not optional:
+            failures += 1
+            app.logger.error(
+                f"Manifest(id={self.manifest_id(entry)} was required to match a file "
+                f"for label {label}, but no matching files were found."
+            )
+        if len(files) > 1 and not multiple:
+            failures += 1
+            app.logger.error(
+                f"Manifest(id={self.manifest_id(entry)} matched muliple files for "
+                f"{label} where only a single file match was allowed:"
+                "\n - " + "\n - ".join(files)
+            )
+        return len(files), failures
 
     def stages(self):
         """Iterate and return SuiteStage instances for each stage"""

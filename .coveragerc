@@ -1,0 +1,8 @@
+[run]
+omit = */test_*
+source = colophon,app/*
+
+[report]
+fail_under = 100
+skip_covered = 1
+show_missing = 1

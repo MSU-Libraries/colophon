@@ -44,7 +44,7 @@ class FileInfo(MutableMapping):
 
 class Directory:
     """
-    The directory interface
+    The directory interaction wrapper
     """
     def __init__(self, dirpath: str=None):
         self.dirpath = None

@@ -19,13 +19,15 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     help="The source directory in which to find files defined by the suite and manifest")
 @click.option('-w', '--workdir', type=str,
     help="A directory where to store temp files and results")
+@click.option('-r', '--retry', type=str,
+    help="Re-run failed tests specified in provided JSON file from previous run")
 @click.option('-t', '--strict', is_flag=True,
     help="Exit code 0 only with no manifest entries skipped and no unassociated files")
 @click.option('-v', '--verbose', is_flag=True,
     help="Provide details output while running")
 @click.option('-q', '--quiet', is_flag=True,
     help="Suppress output while running")
-def main(manifest, suite, sourcedir, workdir, strict, verbose, quiet):
+def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
     """Colophon - File Quality Control Validator"""
     # Create output dir if not provided
     if workdir is not None:
@@ -62,6 +64,8 @@ def main(manifest, suite, sourcedir, workdir, strict, verbose, quiet):
         json.dump({}, results_file)
     app.globalctx['results_path'] = results_path
 
+    # TODO Retry failures from previous run
+
     # Pass manifest through suite to filter out rows to ignore
     app.logger.debug("Applying suite filter to manifest...")
     for entry in app.manifest:
@@ -77,11 +81,16 @@ def main(manifest, suite, sourcedir, workdir, strict, verbose, quiet):
         matched, failed = app.suite.label_files(entry)
         app.logger.debug(f"Files-found={matched}, failed-labels={failed}")
         if failed:
-            app.logger.warning(f"Manifest(id={app.suite.manifest_id(entry)}) failed to find matches for {failed} labels.")
+            fmsg = (
+                f"Manifest(id={app.suite.manifest_id(entry)}) encountered "
+                f"{failed} failures while creating file labels."
+            )
+            entry.failures.append(fmsg)
+            app.logger.warning(fmsg)
 
     # For each manifest row, run scripts from stages
     for entry in app.manifest:
-        if entry.filtered:
+        if entry.filtered or entry.failures:
             continue
 
         mfid = app.suite.manifest_id(entry)
@@ -90,7 +99,9 @@ def main(manifest, suite, sourcedir, workdir, strict, verbose, quiet):
             ready_script = stage.script(entry)
             rcode = app.write_output(stage_dir, *app.exec_command(ready_script, shell=True))
             if rcode != 0:
-                app.logger.info(f"Failure ({stage}, exit: {rcode}): {ready_script}")
+                fmsg = f"Script failure(stage={stage}, exit={rcode}): {ready_script}"
+                entry.failures.append(fmsg)
+                app.logger.info(fmsg)
 
     # Create dump of unassociated files
     #TODO
