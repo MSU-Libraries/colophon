@@ -16,14 +16,16 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 @click.option('-s', '--suite', required=True, type=str,
     help="The suite file defining files to match and what stages to run")
 @click.option('-d', '--dir', 'sourcedir', required=True, type=str,
-    help="The directory in which to find files defined by the suite and manifest")
+    help="The source directory in which to find files defined by the suite and manifest")
 @click.option('-w', '--workdir', type=str,
     help="A directory where to store temp files and results")
+@click.option('-t', '--strict', is_flag=True,
+    help="Exit code 0 only with no manifest entries skipped and no unassociated files")
 @click.option('-v', '--verbose', is_flag=True,
     help="Provide details output while running")
 @click.option('-q', '--quiet', is_flag=True,
     help="Suppress output while running")
-def main(manifest, suite, sourcedir, workdir, verbose, quiet):
+def main(manifest, suite, sourcedir, workdir, strict, strict, verbose, quiet):
     """Colophon - File Quality Control Validator"""
     # Manifest exists and is loadable
     app.manifest = app.Manifest(manifest)
@@ -70,24 +72,32 @@ def main(manifest, suite, sourcedir, workdir, verbose, quiet):
         if entry.filtered:
             continue
 
+        mfid = app.suite.manifest_id(entry)
         for stage in app.suite.stages():
-            stage_dir = os.path.join(app.workdir, stage.name)
+            stage_dir = os.path.join(app.workdir, mfid, stage.name)
             ready_script = stage.script(entry)
             app.logger.debug(f"Running script: {ready_script}")
             rcode, stdout, stderr = app.exec_command(ready_script, shell=True)
             app.logger.debug(f"Script exited with code: {rcode}")
-            app.write_output(stage_dir, stdout, stderr)
+            app.write_output(stage_dir, rcode, stdout, stderr)
             if rcode != 0:
                 print(f"Script exited with code: {rcode}")
                 sys.exit(1) # TODO
 
-    # TODO Create report of successes
+    # Create dump of unassociated files
+    #TODO
 
-    # TODO Create report of failures
+    # TODO Create report of manifest
+    #   - success, failure, skipped
+    #   - count number of stages run on success
+    #   - enumerate failures on failure
+    #   - explain why skipped on skipped
+    # TODO List count of unassociated after run
+    #   - enumerate unassociated files
 
-    # TODO Create report of unassociated files
-
-    # TODO Save final state to disk
+    # TODO Save results as zip file
+    # TODO Print out fullpath to zip file
+    # TODO Return/exit with 0 if no failures (if strict, only when no skips/unassociated also)
     return 0
 
 if __name__ == "__main__":

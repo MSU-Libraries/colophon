@@ -24,6 +24,10 @@ suite = {
         'required': True,
         'type': 'dict',
         'schema': {
+            'id': {
+                'required': True,
+                'type': 'string'
+            },
             'filter': {
                 'type': 'list',
                 'schema': {

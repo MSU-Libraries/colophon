@@ -7,6 +7,7 @@ import cerberus
 import jinja2
 import app
 from app.template import render_template_string
+from app.manifest import ManifestEntry
 from schemas import suite
 
 def value_match(value: str, conditions: dict, context: dict = {}):
@@ -69,6 +70,13 @@ class Suite:
         cerbval = cerberus.Validator(suite)
         if not cerbval.validate(self.suite):
             raise app.ColophonException(f"Invalid suite structure: {cerbval.errors}")
+
+    def manifest_id(self, manifest_entry: ManifestEntry) -> str:
+        """
+        Get the identifier string for an entry. The id is a string that should uniquely identify
+        a manifest row
+        """
+        return render_template_string(self.suite['manifest']['id'], manifest_entry).replace('/','_')
 
     def filter(self, rowmap: dict) -> bool:
         """

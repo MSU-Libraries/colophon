@@ -1,5 +1,7 @@
 ---
 manifest:
+  # String that can be used to identify row (used for separating output)
+  id: "{{ basename }}"
   # Only run on rows in the manifest matching these parameters
   filter:
     # equals, startswith, endswith, regex, ignorecase
