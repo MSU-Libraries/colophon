@@ -1,6 +1,7 @@
 """
 Colophon test Suite functionality
 """
+import os
 import re
 import yaml
 import cerberus
@@ -48,15 +49,15 @@ class Suite:
     """
     The Suite interface
     """
-    def __init__(self, filepath=None):
-        self.filepath = filepath
+    def __init__(self, filepath: str=None):
+        self.filepath = None
         self.suite = None
-        if self.filepath:
-            self.load()
+        if filepath:
+            self.load(filepath)
 
-    def load(self, filepath=None):
+    def load(self, filepath: str=None):
         """Load and validate the suite file"""
-        self.filepath = filepath if filepath else self.filepath
+        self.filepath = filepath.rstrip('/') if filepath else self.filepath
         self.suite = None
         try:
             with open(self.filepath) as mf_file:
@@ -70,6 +71,7 @@ class Suite:
         cerbval = cerberus.Validator(suite)
         if not cerbval.validate(self.suite):
             raise app.ColophonException(f"Invalid suite structure: {cerbval.errors}")
+        app.logger.info(f"Loaded {self}")
 
     def manifest_id(self, manifest_entry: ManifestEntry) -> str:
         """
@@ -78,65 +80,86 @@ class Suite:
         """
         return render_template_string(self.suite['manifest']['id'], manifest_entry).replace('/','_')
 
-    def filter(self, rowmap: dict) -> bool:
+    def filter(self, entry: ManifestEntry) -> bool:
         """
         Given a manifest row, determine if the row should be filtered (that is, excluded) from
         from this suite of tests.
         args:
-            rowmap: A row mapping (of header: value) from the manifest
+            entry: The entry to check
         returns:
-            True if row should be filtered/excluded based on the suite filters
+            True if row has been filtered/excluded based on the suite filters
         """
         filters = self.suite['manifest']['filter'] if 'filter' in self.suite['manifest'] else []
         filtered = False
         for filt in filters:
-            if not value_match(rowmap[filt['value']], filt, rowmap):
+            if not value_match(entry[filt['value']], filt, entry):
                 filtered = True
                 break
         return filtered
 
-    def label_files(self, rowmap: dict) -> int:
+    def label_files(self, entry: ManifestEntry) -> tuple[int,int]:
         """
         Given a manifest row and having already loaded a Directory of files, this finds
         matching files from and label them into them manifest.
         Will mark them as associated in the Directory if labeled.
         args:
-            rowmap: A row mapping (of header: value) from the manifest
+            entry: The entry find label matches for
         returns:
-            A count of the number of failures to match/label files, or 0 if no failures
+            A tuple containing:
+              - A count of matched files
+              - A count of the number of failures to match files
         """
         file_matches = self.suite['manifest']['files']
-        failures = 0
+        total_files, failures = 0, 0
         for fmat in file_matches:
             value = fmat.get('value', '{{ file.name }}')
             optional = fmat.get('optional', False)
             multiple = fmat.get('multiple', False)
             label = fmat['label']
-            rowmap[label] = [] if multiple else None
-            files_found = 0
+            entry[label] = [] if multiple else None
+            files_found = []
             for fpath, fentry in app.sourcedir:
-                context = {**rowmap, **{'file': dict(fentry)}}
+                context = {**entry, **{'file': dict(fentry)}}
                 if value_match(value, fmat, context):
+                    files_found.append(fentry.filepath)
                     # set label in manifest
                     if multiple:
-                        rowmap[label].append(fpath)
+                        entry[label].append(fpath)
                     else:
-                        rowmap[label] = fpath
+                        entry[label] = fpath
                     # mark file as associated
                     if fentry.associated:
-                        # TODO log more info
-                        raise app.ColophonException(f"File matched on {dict(rowmap)}, but was already associated: {fpath}")
+                        failures += 1
+                        app.logger.error(
+                            f"Manifest(id={self.manifest_id(entry)} matched a file, but was already associated: {fpath}"
+                        )
+                        break
                     fentry.associated = True
-                    files_found += 1
-            if files_found == 0 and not optional:
-                #TODO log and failures += 1
-                raise app.ColophonException(f"No file matched on {dict(rowmap)} for {fmat}")
-            if files_found > 1 and not multiple:
-                #TODO log and failures += 1
-                raise app.ColophonException(f"Multiple files matched on {dict(rowmap)} for {fmat}")
-        return failures
+            if len(files_found) == 0 and not optional:
+                failures += 1
+                app.logger.error(
+                    f"Manifest(id={self.manifest_id(entry)} was required to match a file "
+                    f"for label {label}, but no matching files were found."
+                )
+            if len(files_found) > 1 and not multiple:
+                failures += 1
+                app.logger.error(
+                    f"Manifest(id={self.manifest_id(entry)} matched muliple files for "
+                    f"{label} where only a single file match was allowed:"
+                    "\n - " + "\n - ".join(files_found)
+                )
+            total_files += len(files_found)
+        return total_files, failures
 
     def stages(self):
         """Iterate and return SuiteStage instances for each stage"""
         for name in self.suite['stages']:
             yield SuiteStage(name, self.suite['stages'][name])
+
+    def __repr__(self):
+        return (
+            f"Suite(filename={os.path.basename(self.filepath)}, "
+            f"filters={len(self.suite['manifest'].get('filter', []))}, "
+            f"files={len(self.suite['manifest']['files'])}, "
+            f"stages={len(self.suite['stages'])})"
+        )

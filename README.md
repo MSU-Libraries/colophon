@@ -42,8 +42,8 @@ manifest file, suite file), then running `colophon` is quite simple.
 ### Colophon Exit Codes
 The primary `colophon` script has three possible exit codes.
 * `0` There were no failures when running stages on manifest entries.
-* `1` An error occured while running. See output/logs for detals.
-* `2` While running stages, failures occurred.
+* `1` An error occured. See output/logs for detals.
+* `2` While running stages, one or more failures occurred.
 * `2` (Strict mode) A manifest entry was skipped or there were unassociated files.
 
 ### Colophon Output
@@ -90,6 +90,9 @@ The following variables are available in addition to normal `manifest` fields.:
 The following variables are available:
  - All fields that are available from the `manifest` context.
  - All labels defined in `manifest.files` are now field names and can be referenced.
+
+_Note_: Jinja variables within the `stages` section of the manifest will be automatically
+quoted for use as arguments within a shell environment.
 
 ## Check Scripts
 Colophon works by running a set of check scripts in stages against your manifest.

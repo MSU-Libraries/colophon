@@ -19,6 +19,10 @@ class FileInfo(MutableMapping):
         # Has this file been associated with something in the manifest
         self.associated: bool = False
 
+    @property
+    def filepath(self):
+        return os.path.join(self.file['path'], self.file['name'])
+
     def __iter__(self):
         for key in self.file:
             yield key
@@ -36,21 +40,21 @@ class FileInfo(MutableMapping):
         del self.file[key]
 
     def __repr__(self):
-        return f"FileInfo({os.path.join(self.file['path'], self.file['name'])}, size={self.file['size']}, associated={self.associated})"
+        return f"FileInfo({self.filepath}, size={self.file['size']}, associated={self.associated})"
 
 class Directory:
     """
     The directory interface
     """
-    def __init__(self, dirpath=None):
-        self.dirpath = dirpath
+    def __init__(self, dirpath: str=None):
+        self.dirpath = None
         self.filelist = None
-        if self.dirpath:
-            self.load()
+        if dirpath:
+            self.load(dirpath)
 
-    def load(self, dirpath=None):
+    def load(self, dirpath: str=None):
         """Load filenames and filesystem metadata from the directory"""
-        self.dirpath = dirpath if dirpath else self.dirpath
+        self.dirpath = dirpath.rstrip('/') if dirpath else self.dirpath
         self.filelist = None
         if not os.path.isdir(self.dirpath) or not os.access(self.dirpath, os.R_OK):
             raise app.ColophonException(f"Unable to read from specified directory: {self.dirpath}")
@@ -60,6 +64,7 @@ class Directory:
             for filename in files:
                 filepath = os.path.join(aroot,filename)
                 self.filelist[filepath] = FileInfo(filepath)
+        app.logger.info(f"Loaded {self}")
 
     def __len__(self):
         return len(self.filelist) if self.filelist is not None else 0
@@ -70,3 +75,9 @@ class Directory:
     def __iter__(self):
         for fpair in self.filelist.items():
             yield fpair
+
+    def __repr__(self):
+        return (
+            f"Directory(dirname={os.path.basename(self.dirpath)}, "
+            f"files={len(self.filelist)})"
+        )

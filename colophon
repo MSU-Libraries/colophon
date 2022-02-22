@@ -25,8 +25,30 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     help="Provide details output while running")
 @click.option('-q', '--quiet', is_flag=True,
     help="Suppress output while running")
-def main(manifest, suite, sourcedir, workdir, strict, strict, verbose, quiet):
+def main(manifest, suite, sourcedir, workdir, strict, verbose, quiet):
     """Colophon - File Quality Control Validator"""
+    # Create output dir if not provided
+    if workdir is not None:
+        app.workdir = os.path.abspath(workdir)
+        if len(os.listdir(app.workdir)) != 0:
+            raise app.ColophonException(f"Work directory must be empty: {workdir}")
+    else:
+        app.workdir = tempfile.mkdtemp()
+
+    # Configure logging
+    fileHandler = logging.FileHandler(os.path.join(app.workdir, 'colophon.log'))
+    stderrHandler = logging.StreamHandler()
+    stderrHandler.setLevel(
+        logging.DEBUG if verbose else (logging.ERROR if quiet else logging.INFO)
+    )
+    logging.basicConfig(
+        format="%(asctime)s [%(levelname)s] %(message)s",
+        encoding='utf-8',
+        level=logging.DEBUG,
+        handlers=[fileHandler, stderrHandler]
+    )
+    app.logger = logging.getLogger()
+
     # Manifest exists and is loadable
     app.manifest = app.Manifest(manifest)
     # Suite file exists and is loadable
@@ -34,38 +56,28 @@ def main(manifest, suite, sourcedir, workdir, strict, strict, verbose, quiet):
     # Source dir exists and is readable
     app.sourcedir = app.Directory(sourcedir)
 
-    # Create output dir if not provided
-    if workdir is not None:
-        app.workdir = os.path.abspath(workdir)
-        check_wdir = app.Directory(app.workdir)
-        if len(check_wdir) != 0:
-            raise app.ColophonException(f"Work directory is not empty: {workdir}")
-    else:
-        app.workdir = tempfile.mkdtemp()
-
-    # Configure logging
-    logging.basicConfig(
-        filename=os.path.join(app.workdir, 'colophon.log'),
-        encoding='utf-8',
-        level=logging.DEBUG
-    )
-    app.logger = logging.getLogger()
-
     # Populate results JSON with empty dict
     results_path = os.path.join(app.workdir, 'results.json')
     with open(results_path, 'w') as results_file:
         json.dump({}, results_file)
     app.globalctx['results_path'] = results_path
 
-    # Pass manifest through suite to filter out rows
+    # Pass manifest through suite to filter out rows to ignore
+    app.logger.debug("Applying suite filter to manifest...")
     for entry in app.manifest:
         entry.filtered = app.suite.filter(entry)
+    app.logger.debug(
+        f"Manifest rows: selected={app.manifest.count()}, "
+        f"filtered={app.manifest.count(True)}"
+    )
 
-    # For each manifest row with all files found/associated, process the stages of suite
+    # For each manifest row, match/associate files to that row
     for entry in app.manifest:
-        if app.suite.label_files(entry):
-            print(f"Failures found for {entry}")
-            sys.exit(1) # TODO
+        app.logger.debug(f"Labeling files for manifest row: {app.suite.manifest_id(entry)}")
+        matched, failed = app.suite.label_files(entry)
+        app.logger.debug(f"Files-found={matched}, failed-labels={failed}")
+        if failed:
+            app.logger.warning(f"Manifest(id={app.suite.manifest_id(entry)}) failed to find matches for {failed} labels.")
 
     # For each manifest row, run scripts from stages
     for entry in app.manifest:
@@ -76,13 +88,9 @@ def main(manifest, suite, sourcedir, workdir, strict, strict, verbose, quiet):
         for stage in app.suite.stages():
             stage_dir = os.path.join(app.workdir, mfid, stage.name)
             ready_script = stage.script(entry)
-            app.logger.debug(f"Running script: {ready_script}")
-            rcode, stdout, stderr = app.exec_command(ready_script, shell=True)
-            app.logger.debug(f"Script exited with code: {rcode}")
-            app.write_output(stage_dir, rcode, stdout, stderr)
+            rcode = app.write_output(stage_dir, *app.exec_command(ready_script, shell=True))
             if rcode != 0:
-                print(f"Script exited with code: {rcode}")
-                sys.exit(1) # TODO
+                app.logger.info(f"Failure ({stage}, exit: {rcode}): {ready_script}")
 
     # Create dump of unassociated files
     #TODO

@@ -4,6 +4,7 @@ Process handling
 import os
 import subprocess
 import pathlib
+import app
 
 def exec_command(cmd: str|list, shell: bool=False, redirect_stderr: bool=False):
     """
@@ -16,10 +17,16 @@ def exec_command(cmd: str|list, shell: bool=False, redirect_stderr: bool=False):
         tuple(int, list, list): Exit code, stdout lines as list, stderr lines as list
     """
     cmd = cmd if isinstance(cmd, list) else ([cmd] if shell else cmd.split())
+    app.logger.debug(f"Executing (shell={shell}): {cmd}")
     stderr_tgt=subprocess.STDOUT if redirect_stderr else subprocess.PIPE
     proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=stderr_tgt)
     stdout, stderr = proc.communicate()
-    return proc.returncode, stdout.splitlines(keepends=True), [] if not stderr else stderr.splitlines(keepends=True)
+    app.logger.debug(f"Command exited with code: {proc.returncode}")
+    return (
+        proc.returncode,
+        stdout.splitlines(keepends=True),
+        [] if not stderr else stderr.splitlines(keepends=True)
+    )
 
 def write_output(
     directory: str,
@@ -28,15 +35,19 @@ def write_output(
     stderr: list,
     stdout_file: str="stdout.log",
     stderr_file: str="stderr.log"
-):
+) -> int:
     """
     Append the given output lines to files within the directory, creating the
-    directory and files if needed.
+    directory and files if needed. Create/append to an rcode file the given
+    rcode provided.
+    Returns:
+        The rcode passed in
     """
     pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
-    with open(os.path.join(directory, f"rcode.{rcode}"), 'aw') as rof:
+    with open(os.path.join(directory, f"rcode.{rcode}"), 'a') as rof:
         rof.write(f"{rcode}")
     with open(os.path.join(directory, stdout_file), 'ab') as sof:
         sof.writelines(stdout)
     with open(os.path.join(directory, stderr_file), 'ab') as sef:
         sef.writelines(stderr)
+    return rcode

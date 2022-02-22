@@ -1,6 +1,7 @@
 """
 Colophon Manifest functionality
 """
+import os
 from collections.abc import MutableMapping, MutableSequence
 import csv
 import cerberus
@@ -10,6 +11,8 @@ class ManifestEntry(MutableMapping):
     def __init__(self, headers, values):
         # Filtered entries are to be ignored
         self.filtered = False
+        # A failure occurred for this entry
+        self.failed = False
         self.rowmap = dict(zip(headers, values))
 
     def __iter__(self):
@@ -38,15 +41,15 @@ class Manifest(MutableSequence):
     The Manifest file interface
     """
     def __init__(self, filepath: str=None):
-        self.filepath = filepath
+        self.filepath = None
         self.headers = None
         self.manifest = None
-        if self.filepath:
-            self.load()
+        if filepath:
+            self.load(filepath)
 
     def load(self, filepath: str=None):
         """Load the manifest file"""
-        self.filepath = filepath if filepath else self.filepath
+        self.filepath = filepath.rstrip('/') if filepath else self.filepath
         self.headers = None
         self.manifest = None
         try:
@@ -62,6 +65,7 @@ class Manifest(MutableSequence):
                     self.manifest.append(ManifestEntry(self.headers, row))
         except FileNotFoundError:
             raise app.ColophonException(f"Unable to open manifest - file missing: {self.filepath}") from None
+        app.logger.info(f"Loaded {self}")
 
     def __getitem__(self, idx: int):
         return self.manifest[idx]
@@ -75,9 +79,14 @@ class Manifest(MutableSequence):
     def __len__(self):
         return len(self.manifest)
 
+    def count(self, filtered=False):
+        return len([0 for _ in self.manifest if _.filtered == filtered])
+
     def insert(self, idx, entry):
         self.manifest.insert(idx, entry)
 
-    #def __iter__(self):
-    #    for row_idx in range(len(self.manifest)):
-    #        yield self[row_idx]
+    def __repr__(self):
+        return (
+            f"Manifest(filename={os.path.basename(self.filepath)}, "
+            f"fields={len(self.headers)}, datarows={len(self.manifest)})"
+        )
