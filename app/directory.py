@@ -42,7 +42,7 @@ class FileInfo(MutableMapping):
     def __repr__(self):
         return f"FileInfo({self.filepath}, size={self.file['size']}, associated={self.associated})"
 
-class Directory:
+class Directory(MutableMapping):
     """
     The directory interaction wrapper
     """
@@ -66,11 +66,23 @@ class Directory:
                 self.filelist[filepath] = FileInfo(filepath)
         app.logger.info(f"Loaded {self}")
 
+    def files(self, associated: bool=True):
+        """Iterate through files, returning only either associated/unassociated files"""
+        for fpair in self:
+            if fpair[1].associated == associated:
+                yield fpair
+
     def __len__(self):
         return len(self.filelist) if self.filelist is not None else 0
 
     def __getitem__(self, key):
         return self.filelist[key]
+
+    def __setitem__(self, key, val):
+        self.filelist[key] = val
+
+    def __delitem__(self, key):
+        del self.filelist[key]
 
     def __iter__(self):
         for fpair in self.filelist.items():

@@ -4,6 +4,7 @@ import sys
 import tempfile
 import logging
 import json
+import zipfile
 import click
 import jinja2
 import app
@@ -23,11 +24,13 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     help="Re-run failed tests specified in provided JSON file from previous run")
 @click.option('-t', '--strict', is_flag=True,
     help="Exit code 0 only with no manifest entries skipped and no unassociated files")
+@click.option('-p', '--dir-prefix', 'prefix', type=str,
+    help="Run colophon from within this path prefix; will remove prefix from logs/reports")
 @click.option('-v', '--verbose', is_flag=True,
     help="Provide details output while running")
 @click.option('-q', '--quiet', is_flag=True,
     help="Suppress output while running")
-def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
+def main(manifest, suite, sourcedir, workdir, retry, strict, prefix, verbose, quiet):
     """Colophon - File Quality Control Validator"""
     # Create output dir if not provided
     if workdir is not None:
@@ -51,6 +54,8 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
     )
     app.logger = logging.getLogger()
 
+    # Path prefix to remove from paths
+    app.prefix = prefix.rstrip('/') if prefix else ''
     # Manifest exists and is loadable
     app.manifest = app.Manifest(manifest)
     # Suite file exists and is loadable
@@ -95,6 +100,7 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
 
         mfid = app.suite.manifest_id(entry)
         for stage in app.suite.stages():
+            app.logger.debug(f"Running Stage(stage={stage.name}, manifest-id={mfid})")
             stage_dir = os.path.join(app.workdir, mfid, stage.name)
             ready_script = stage.script(entry)
             rcode = app.write_output(stage_dir, *app.exec_command(ready_script, shell=True))
@@ -104,7 +110,14 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
                 app.logger.info(fmsg)
 
     # Create dump of unassociated files
-    #TODO
+    app.logger.debug("Generating report: unassociated.json")
+    unassociated = []
+    for fpath, _ in app.sourcedir.files(associated=False):
+        unassociated.append(fpath.removeprefix(app.prefix))
+    unassociated_path = os.path.join(app.workdir, 'unassociated.json')
+    with open(unassociated_path, 'w') as unassociated_file:
+        json.dump(unassociated, unassociated_file, indent=2)
+        unassociated_file.write('\n')
 
     # TODO Create report of manifest
     #   - success, failure, skipped
@@ -114,8 +127,23 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
     # TODO List count of unassociated after run
     #   - enumerate unassociated files
 
-    # TODO Save results as zip file
-    # TODO Print out fullpath to zip file
+    # Save results as zip file
+    with (
+        tempfile.NamedTemporaryFile(prefix='colophon_', suffix='.zip', delete=False) as ztemp,
+        zipfile.ZipFile(ztemp, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zfile
+    ):
+        app.logger.debug(f"Bundling output into zip file: {ztemp.name}")
+        for root, dirs, files in os.walk(app.workdir):
+            for fname in files:
+                filepath = os.path.join(root, fname)
+                zfile.write(
+                    filepath,
+                    arcname=filepath.removeprefix(app.workdir).lstrip("/")
+                )
+
+        # Print out fullpath to zip file
+        print(ztemp.name)
+
     # TODO Return/exit with 0 if no failures (if strict, only when no skips/unassociated also)
     return 0
 

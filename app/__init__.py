@@ -8,5 +8,6 @@ manifest = None
 suite = None
 sourcedir = None
 workdir = None
+prefix = ''
 logger = None
 globalctx = {}

@@ -50,9 +50,9 @@ stages:
     script: "scripts/verify-hash -c {{ pres }} -f {{ pres_hash }} -v -J {{ results_path }}"
 
   # Verify file fingerprint
-  stage2.1:
-    script: "echo TODO"
+  #stage2.1:
+  #  script: "echo TODO"
 
   # Verify video frames
-  stage3.1:
-    script: "echo TODO"
+  #stage3.1:
+  #  script: "echo TODO"
