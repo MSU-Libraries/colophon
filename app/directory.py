@@ -46,23 +46,40 @@ class Directory(MutableMapping):
     """
     The directory interaction wrapper
     """
+    _instantiated: bool = False
+
     def __init__(self, dirpath: str=None):
         self.dirpath = None
         self.filelist = None
         if dirpath:
             self.load(dirpath)
 
+    def chdir(self):
+        """Change into the dirpath for the Directory"""
+        if not self.dirpath:
+            raise app.ColophonException("Cannot change directory path; path was never set.")
+
+        app.logger.info(f"Change directory to: {self.dirpath}")
+        # Change effective working directory to files sourcedir
+        # This is to be able to have relative paths in output
+        os.chdir(self.dirpath)
+
     def load(self, dirpath: str=None):
-        """Load filenames and filesystem metadata from the directory"""
+        """
+        Change into directory given and load filenames and filesystem metadata
+        from the directory"""
+        if Directory._instantiated:
+            raise app.ColophonException("Cannot have more than one Directory instance instantiated.")
+        Directory._instantiated = True
+
         self.dirpath = dirpath.rstrip('/') if dirpath else self.dirpath
-        self.filelist = None
         if not os.path.isdir(self.dirpath) or not os.access(self.dirpath, os.R_OK):
-            raise app.ColophonException(f"Unable to read from specified directory: {self.dirpath}")
+            raise app.ColophonException(f"Unable to read from specified directory: {os.path.abspath(self.dirpath)}")
         self.filelist = {}
-        for root, dirs, files in os.walk(self.dirpath):
-            aroot = os.path.abspath(root)
+        self.chdir()
+        for root, dirs, files in os.walk('.'):
             for filename in files:
-                filepath = os.path.join(aroot,filename)
+                filepath = os.path.join(root, filename).removeprefix("./")
                 self.filelist[filepath] = FileInfo(filepath)
         app.logger.info(f"Loaded {self}")
 
@@ -90,6 +107,6 @@ class Directory(MutableMapping):
 
     def __repr__(self):
         return (
-            f"Directory(dirname={os.path.basename(self.dirpath)}, "
+            f"Directory(dirname={os.path.basename(os.path.abspath(self.dirpath))}, "
             f"files={len(self.filelist)})"
         )

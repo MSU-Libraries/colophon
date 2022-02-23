@@ -99,6 +99,11 @@ Colophon works by running a set of check scripts in stages against your manifest
 
 A check script can be written in any lanugage or shell which abides by a set of rules.
 
+### Relative Paths
+Check scripts should accept relative paths as input arguments and should _NOT_
+attempt to convert them into absolute paths at any point. If relative paths were
+passed in, then relative paths should be used for any logs or output.
+
 ### Input
 It is recommended that a check script can accept a JSON file as an input argument.
 This would be the `results.json` and the script should write the result of its

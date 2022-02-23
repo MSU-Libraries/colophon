@@ -9,7 +9,8 @@ import click
 import jinja2
 import app
 # Add current path to sys path for loading libraries
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+app.install_path = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, app.install_path)
 
 @click.command()
 @click.option('-m', '--manifest', required=True, type=str,
@@ -24,13 +25,11 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
     help="Re-run failed tests specified in provided JSON file from previous run")
 @click.option('-t', '--strict', is_flag=True,
     help="Exit code 0 only with no manifest entries skipped and no unassociated files")
-@click.option('-p', '--dir-prefix', 'prefix', type=str,
-    help="Run colophon from within this path prefix; will remove prefix from logs/reports")
 @click.option('-v', '--verbose', is_flag=True,
     help="Provide details output while running")
 @click.option('-q', '--quiet', is_flag=True,
     help="Suppress output while running")
-def main(manifest, suite, sourcedir, workdir, retry, strict, prefix, verbose, quiet):
+def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
     """Colophon - File Quality Control Validator"""
     # Create output dir if not provided
     if workdir is not None:
@@ -54,8 +53,6 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, prefix, verbose, qu
     )
     app.logger = logging.getLogger()
 
-    # Path prefix to remove from paths
-    app.prefix = prefix.rstrip('/') if prefix else ''
     # Manifest exists and is loadable
     app.manifest = app.Manifest(manifest)
     # Suite file exists and is loadable
@@ -113,7 +110,7 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, prefix, verbose, qu
     app.logger.debug("Generating report: unassociated.json")
     unassociated = []
     for fpath, _ in app.sourcedir.files(associated=False):
-        unassociated.append(fpath.removeprefix(app.prefix))
+        unassociated.append(fpath)
     unassociated_path = os.path.join(app.workdir, 'unassociated.json')
     with open(unassociated_path, 'w') as unassociated_file:
         json.dump(unassociated, unassociated_file, indent=2)

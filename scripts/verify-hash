@@ -65,16 +65,15 @@ parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
         -c|--check-file)
-            verbose "$2"
-            ARGS[CHECK_FILE]="$( readlink -f $2 )"
-            if [[ $? -ne 0 || ! -f "${ARGS[CHECK_FILE]}" ]]; then
+            ARGS[CHECK_FILE]="$2"
+            if [[ ! -f "${ARGS[CHECK_FILE]}" ]]; then
                 stderr "File to check does not exist: $2"
                 exit 3
             fi
             shift; shift ;;
         -f|--hash-file)
-            ARGS[HASH_FILE]="$( readlink -f $2 )"
-            if [[ $? -ne 0 || ! -f "${ARGS[HASH_FILE]}" ]]; then
+            ARGS[HASH_FILE]="$2"
+            if [[ ! -f "${ARGS[HASH_FILE]}" ]]; then
                 stderr "Hash file does not exist: $2"
                 exit 3
             fi
@@ -95,8 +94,8 @@ parse_args() {
             fi
             shift; shift ;;
         -J|--json)
-            ARGS[JSON]="$( readlink -f $2 )"
-            if [[ $? -ne 0 || ! -f "${ARGS[JSON]}" ]]; then
+            ARGS[JSON]="$2"
+            if [[ ! -f "${ARGS[JSON]}" ]]; then
                 stderr "Results JSON file does not exist: $2"
                 exit 5
             fi

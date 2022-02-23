@@ -17,6 +17,7 @@ def exec_command(cmd: str|list, shell: bool=False, redirect_stderr: bool=False):
         tuple(int, list, list): Exit code, stdout lines as list, stderr lines as list
     """
     cmd = cmd if isinstance(cmd, list) else ([cmd] if shell else cmd.split())
+    cmd[0] = os.path.join(app.install_path, cmd[0])
     app.logger.debug(f"Executing (shell={shell}): {cmd}")
     stderr_tgt=subprocess.STDOUT if redirect_stderr else subprocess.PIPE
     proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=stderr_tgt)

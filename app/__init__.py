@@ -4,10 +4,10 @@ from .suite import Suite
 from .exception import ColophonException
 from .process import exec_command, write_output
 
+install_path = None
 manifest = None
 suite = None
 sourcedir = None
 workdir = None
-prefix = ''
 logger = None
 globalctx = {}
