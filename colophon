@@ -12,16 +12,20 @@ import app
 app.install_path = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, app.install_path)
 
-@click.command()
-@click.option('-m', '--manifest', required=True, type=str,
-    help="The file manifest as csv file; first row defines labels for each column")
-@click.option('-s', '--suite', required=True, type=str,
+CONTEXT_SETTINGS = {
+    'help_option_names': ['-h', '--help']
+}
+
+@click.command(context_settings=CONTEXT_SETTINGS)
+@click.option('-m', '--manifest', required=True, type=str, metavar='MNFST',
+    help="The file manifest as CSV file; first row defines labels for each column")
+@click.option('-s', '--suite', required=True, type=str, metavar='SUITE',
     help="The suite file defining files to match and what stages to run")
-@click.option('-d', '--dir', 'sourcedir', required=True, type=str,
+@click.option('-d', '--dir', 'sourcedir', required=True, type=str, metavar='DIR',
     help="The source directory in which to find files defined by the suite and manifest")
-@click.option('-w', '--workdir', type=str,
+@click.option('-w', '--workdir', type=str, metavar='WORKDIR',
     help="A directory where to store temp files and results")
-@click.option('-r', '--retry', type=str,
+@click.option('-r', '--retry', type=str, metavar='FAILED',
     help="Re-run failed tests specified in provided JSON file from previous run")
 @click.option('-t', '--strict', is_flag=True,
     help="Exit code 0 only with no manifest entries skipped and no unassociated files")
@@ -106,25 +110,16 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
                 entry.failures.append(fmsg)
                 app.logger.info(fmsg)
 
-    # Create dump of unassociated files
-    app.logger.debug("Generating report: unassociated.json")
-    unassociated = []
-    for fpath, _ in app.sourcedir.files(associated=False):
-        unassociated.append(fpath)
-    unassociated_path = os.path.join(app.workdir, 'unassociated.json')
-    with open(unassociated_path, 'w') as unassociated_file:
-        json.dump(unassociated, unassociated_file, indent=2)
-        unassociated_file.write('\n')
+    app.logger.debug("Generating unassociated JSON report.")
+    app.report.UnassociatedReport.generate()
 
-    # TODO Create report of manifest
-    #   - success, failure, skipped
-    #   - count number of stages run on success
-    #   - enumerate failures on failure
-    #   - explain why skipped on skipped
-    # TODO List count of unassociated after run
-    #   - enumerate unassociated files
+    app.logger.debug("Generating final manifest CSV.")
+    app.report.ManifestReport.generate()
 
-    # Save results as zip file
+    app.logger.debug("Generating summary JSON report.")
+    app.report.SummaryReport.generate()
+
+    # Save all output as zip file
     with (
         tempfile.NamedTemporaryFile(prefix='colophon_', suffix='.zip', delete=False) as ztemp,
         zipfile.ZipFile(ztemp, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zfile

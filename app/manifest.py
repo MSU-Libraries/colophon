@@ -15,6 +15,14 @@ class ManifestEntry(MutableMapping):
         self.failures: list = []
         self.rowmap = dict(zip(headers, values))
 
+    def headers(self) -> list:
+        """Keys for this row as a list"""
+        return list(self.rowmap.keys())
+
+    def values(self) -> list:
+        """Values for this row as a list"""
+        return list(self.rowmap.values())
+
     def __iter__(self):
         for key in self.rowmap:
             yield key

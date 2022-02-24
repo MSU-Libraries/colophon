@@ -3,6 +3,7 @@ from .directory import Directory
 from .suite import Suite
 from .exception import ColophonException
 from .process import exec_command, write_output
+import app.report
 
 install_path = None
 manifest = None

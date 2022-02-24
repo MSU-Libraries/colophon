@@ -1,8 +1,29 @@
 # Colophon: File Quality Control Validator
 
-TODO what is colophon?
+Colophon is a tool to ...
+
+## Table of Contents
+* [Installing](#installing)
+* [What is Needed to Run](#what-is-needed-to-run)
+* [How Colophon Works](#how-colophon-works)
+* [Running Colophon](#running-colophon)
+* [Flags and Arguments](#flags-and-arguments)
+  - [Colophon Exit Codes](#colophon-exit-codes)
+  - [Colophon Output](#colophon-output)
+* [The Manifest File](#the-manifest-file)
+  - [Generating a Manifest](#generating-a-manifest)
+* [The Suite File](#the-suite-file)
+  - [Template Strings](#template-strings)
+* [Check Scripts](#check-scripts)
+  - [Relative Paths](#relative-paths)
+  - [Input](#input)
+  - [File Modification](#file-modification)
+  - [Output](#output)
+  - [Exit Codes](#exit-codes)
+  - [Results JSON File as Input Argument](#results-json-file-as-input-argument)
 
 ## Installing
+TODO dependencies
 TODO
 
 ## What is Needed to Run
@@ -12,7 +33,7 @@ Before you can run Colophon, you will need the following:
 * A CSV listing records that need to be verified (the **manifest**)
 * A configuration file of what tests to run (the **suite** of tests)
 
-## How Colophon Runs
+## How Colophon Works
 Colophon starts with the manifest file. This is an arbitrary CSV file
 with a header row to give column labels.
 
@@ -37,7 +58,24 @@ creating a the suite file before running your verifications.
 Assuming you have the three required components ready (source directory,
 manifest file, suite file), then running `colophon` is quite simple.
 ```
+./colophon -m example_manifest.csv -s suites/verify-video.yml -d example_files/ -v
 ```
+Where:
+* `example_manifest.csv` is the CSV file containing the manifest
+* `suites/verify-video.yml` is a YAML file defining the suite to run against the manifest
+* `example_files/` is a directory where files associated with the manifest are located
+
+### Flags and Arguments
+A full list of command options is also avilable by using the `-h` or `--help` flag.
+
+* `-m, --manifest MNFST`    The file manifest as csv file; first row defines labels for each column  [required]
+* `-s, --suite SUITE`       The suite file defining files to match and what stages to run  [required]
+* `-d, --dir DIR`           The source directory in which to find files defined by the suite and manifest  [required]
+* `-w, --workdir WORKDIR`   A directory where to store temp files and results
+* `-r, --retry FAILED`      Re-run failed tests specified in provided JSON file from previous run
+* `-t, --strict`            Exit code 0 only with no manifest entries skipped and no unassociated files
+* `-v, --verbose`           Provide details output while running
+* `-q, --quiet`             Suppress output while running
 
 ### Colophon Exit Codes
 The primary `colophon` script has three possible exit codes.
@@ -63,7 +101,7 @@ TODO `generate-manifest-from-spreadsheet`
 ## The Suite File
 TODO
 
-### Template String
+### Template Strings
 Colophon makes use of [Jinja2](https://jinja2docs.readthedocs.io/) template rendering
 when parsing values from suite files (except for `regex` expressons).
 
@@ -126,6 +164,9 @@ A check script _should_ write failures or warning information to stderr instead
 of stdout. This will be logged separately in order to help assist with reviewing
 and media issues found.
 
+A check script _may_ write structured output data into
+the [Results-JSON](#results-json-file-as-input-argument) file.
+
 ### Exit Codes
 Check scripts **must** have a standard exit code which indicates the result
 of the script. A code of `0` means the check was successful. Any other value means
@@ -145,9 +186,9 @@ for details.
 When creating a check script at its simplest form, a script that returns
 either `0` or `1` will suffice.
 
-#### Results JSON File
+### Results JSON File as Input Argument
 It is recommended that scripts accept a JSON file as an argument. The scripts
-may then output results into the JSON file.
+may then output structured results by updating the JSON file.
 
 In dealing with the results JSON files, the script should:
 * Never overwrite other data already in the JSON file.
@@ -155,7 +196,7 @@ In dealing with the results JSON files, the script should:
 * Separate results generated using the check script from other results in the file.
 * Preferably, output should be written under a key that matches the script's filename.
 
-Writing to the results file in the following manner **is good**:
+Writing to the results file in the following manner **is recommended**:
 ```
 {
   "my-check-script": [
@@ -170,7 +211,7 @@ Writing to the results file in the following manner **is good**:
   ]
 }
 ```
-However, writing to the results file in this next manner **is bad**:
+However, writing to the results file in this next manner **is discouraged**:
 ```
 {
   "/path/to/fileA.txt": [
@@ -187,7 +228,8 @@ However, writing to the results file in this next manner **is bad**:
   ]
 }
 ```
-This second output fails to separate the script output from other types
-of output. If two scripts did the same practice, then both differing
-output types would be mixed in the same list format! This would be
+
+This second **bad example** of output fails to separate the script output from
+other types of output. If two scripts did the same practice, then both
+differing output types would be mixed in the same list format! This would be
 very annoying to try to parse.
