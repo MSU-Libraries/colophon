@@ -110,14 +110,12 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
                 entry.failures.append(fmsg)
                 app.logger.info(fmsg)
 
-    app.logger.debug("Generating unassociated JSON report.")
-    app.report.UnassociatedReport.generate()
-
     app.logger.debug("Generating final manifest CSV.")
-    app.report.ManifestReport.generate()
+    app.report.ManifestReport().generate()
 
     app.logger.debug("Generating summary JSON report.")
-    app.report.SummaryReport.generate()
+    summary = app.report.SummaryReport()
+    summary.generate()
 
     # Save all output as zip file
     with (
@@ -136,8 +134,7 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
         # Print out fullpath to zip file
         print(ztemp.name)
 
-    # TODO Return/exit with 0 if no failures (if strict, only when no skips/unassociated also)
-    return 0
+    return summary.exit_code(strict)
 
 if __name__ == "__main__":
     sys.exit(main())
