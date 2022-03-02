@@ -67,38 +67,30 @@ parse_args() {
         -c|--check-file)
             ARGS[CHECK_FILE]="$2"
             if [[ ! -f "${ARGS[CHECK_FILE]}" ]]; then
-                stderr "File to check does not exist: $2"
-                exit 3
+                die 3 "File to check does not exist: $2"
             fi
             shift; shift ;;
         -f|--hash-file)
             ARGS[HASH_FILE]="$2"
             if [[ ! -f "${ARGS[HASH_FILE]}" ]]; then
-                stderr "Hash file does not exist: $2"
-                exit 3
+                die 3 "Hash file does not exist: $2"
             fi
             shift; shift ;;
         -s|--hash-str)
             ARGS[HASH_STR]="$2"
             shift; shift
             if [[ $? -ne 0 ]]; then
-                stderr "No hash provided"
-                exit 5
+                die 5 "No hash provided"
             fi
             ;;
         -a|--algo)
             ARGS[ALGO]="$2"
             if ! array_contains ALLOWED_ALGOS "${ARGS[ALGO]}"; then
-                stderr "Unsupported hash algorithm: $2. Supported: ${ALLOWED_ALGOS[*]}"
-                exit 5
+                die 5 "Unsupported hash algorithm: $2. Supported: ${ALLOWED_ALGOS[*]}"
             fi
             shift; shift ;;
         -J|--json)
             ARGS[JSON]="$2"
-            if [[ ! -f "${ARGS[JSON]}" ]]; then
-                stderr "Results JSON file does not exist: $2"
-                exit 5
-            fi
             shift; shift ;;
         -v|--verbose)
             ARGS[VERBOSE]=1
@@ -108,8 +100,7 @@ parse_args() {
             exit 1
             ;;
         *)
-            stderr "Error: Unknown flag: $1"
-            exit 5
+            die 5 "Error: Unknown flag: $1"
         esac
     done
 
@@ -121,8 +112,7 @@ parse_args() {
         if [[ -f "${ARGS[HASH_FILE]}" ]]; then
             verbose "No hash source provided. Assuming: ${ARGS[HASH_FILE]}"
         else
-            stderr "No hash source provided."
-            exit 5
+            die 5 "No hash source provided."
         fi
     fi
 
@@ -131,8 +121,7 @@ parse_args() {
         ARGS[ALGO]="${ARGS[HASH_FILE]##*.}"
         verbose "No algorithm provided. Trying extension from: ${ARGS[HASH_FILE]}"
         if ! array_contains ALLOWED_ALGOS "${ARGS[ALGO]}"; then
-            stderr "Unsupported hash algorithm: ${ARGS[ALGO]}. Supported: ${ALLOWED_ALGOS[*]}"
-            exit 5
+            die 5 "Unsupported hash algorithm: ${ARGS[ALGO]}. Supported: ${ALLOWED_ALGOS[*]}"
         fi
     fi
 }
@@ -148,12 +137,16 @@ stderr() {
     1>&2 echo "$1"
 }
 
+die() {
+    stderr "$2"
+    exit $1
+}
+
 required_flags() {
     REQUIRED=( CHECK_FILE )
     for REQ in "${REQUIRED[@]}"; do
         if [[ -z "${ARGS[$REQ]}" ]]; then
-            stderr "Failure: Missing required flag --${REQ,,}"
-            exit 5
+            die 5 "Failure: Missing required flag --${REQ,,}"
         fi
     done
 }
@@ -168,8 +161,7 @@ main() {
 
     HASHBIN="${ARGS[ALGO]}sum"
     if [[ -n "${ARGS[HASH_FILE]}" && -n "${ARGS[HASH_STR]}" ]]; then
-        stderr "Can only verify either --hash-file or --hash-str, but not both at the same time."
-        exit 5
+        die 5 "Can only verify either --hash-file or --hash-str, but not both at the same time."
     elif [[ -n "${ARGS[HASH_FILE]}" ]]; then
         HASH_VERIFY=$( first_word_lower $( cat "${ARGS[HASH_FILE]}" ) )
         verbose "Read hash $HASH_VERIFY from ${ARGS[HASH_FILE]}"
@@ -188,7 +180,12 @@ main() {
 
     # Update JSON if provided
     if [[ -n "${ARGS[JSON]}" ]]; then
-        verbose "Updating JSON file ${ARGS[JSON]} with hash check results."
+        if [[ ! -e "${ARGS[JSON]}" ]]; then
+            verbose "Creating new JSON file ${ARGS[JSON]} with hash check results."
+            echo "{}" > "${ARGS[JSON]}" || die 5 "Could not write to JSON file: ${ARGS[JSON]}"
+        else
+            verbose "Updating JSON file ${ARGS[JSON]} with hash check results."
+        fi
         jq ".\"verify-hash\" |= .+ [{ \
                 filepath: \"${ARGS[CHECK_FILE]}\", \
                 algorithm: \"${ARGS[ALGO]}\", \

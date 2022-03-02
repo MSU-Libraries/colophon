@@ -188,10 +188,13 @@ either `0` or `1` will suffice.
 
 ### Results JSON File as Input Argument
 It is recommended that scripts accept a JSON file as an argument. The scripts
-may then output structured results by updating the JSON file.
+may then output structured results by creating/updating the JSON file.
+
+If the give results JSON file already exist, add data to it. If the JSON file
+does not exist, then the script must create the file itself.
 
 In dealing with the results JSON files, the script should:
-* Never overwrite other data already in the JSON file.
+* Never overwrite other data already in and existing JSON file.
 * Attempt to write data in a way where collisions would never occur; e.g. appending to a list.
 * Separate results generated using the check script from other results in the file.
 * Preferably, output should be written under a key that matches the script's filename.

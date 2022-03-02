@@ -36,46 +36,53 @@ def rcode_counts(search_dir: str):
 class SummaryReport:
     """Summary report of overall run"""
     def __init__(self):
-        self.failures = None
-        self.skips = None
+        self.failed = None
+        self.skipped = None
         self.unassociated = None
 
     def generate(self, savedir: str=None, filename: str="summary.json"):
         """Create report and save in workdir"""
         savedir = savedir if savedir else app.workdir
-        summary = {}
-
-        # Quick overview
-        successes = len([ent for ent in app.manifest if not ent.filtered and not ent.failures])
-        self.failures = len([ent for ent in app.manifest if ent.failures])
-        self.skips = len([ent for ent in app.manifest if ent.filtered])
-        summary['row-overview'] = {
-            'success': successes,
-            'failed': self.failures,
-            'skipped': self.skips
+        summary = {
+            'row-overview': {},
+            'skipped': [],
+            'failed': [],
+            'unassociated-files': [],
+            'rows': {}
         }
 
-        # Rcode count per row
-        summary['rows'] = {}
         for entry in app.manifest:
             mfid = app.suite.manifest_id(entry)
+
+            # Exit-code summary per row
             summary['rows'][mfid] = (row := {})
             row['exit-codes'] = rcode_counts(os.path.join(app.workdir, mfid))
 
-        # Failure reasons
-        summary['failures'] = {}
-        for entry in app.manifest:
+            # Failure reasons
             if entry.failures:
-                mfid = app.suite.manifest_id(entry)
-                summary['failures'][mfid] = entry.failures
+                summary['failed'].append(mfid)
+                row['failures'] = entry.failures
 
-        #TODO - explain why skipped rows were skipped
+            # Explain why filtered rows were skipped
+            if entry.filtered:
+                summary['skipped'].append(mfid)
+                row['skipped-because'] = entry.filtered
+
+        self.failed = len(summary['failed'])
+        self.skipped = len(summary['skipped'])
 
         # Unassociated files
-        summary['unassociated'] = (unassociated := [])
         for fpath, _ in app.sourcedir.files(associated=False):
-            unassociated.append(fpath)
-        self.unassociated = len(unassociated)
+            summary['unassociated-files'].append(fpath)
+        self.unassociated = len(summary['unassociated-files'])
+
+        # Manifest row overview
+        succeeded = len([ent for ent in app.manifest if not ent.filtered and not ent.failures])
+        summary['row-overview'] = {
+            'succeeded': succeeded,
+            'failed': self.failed,
+            'skipped': self.skipped
+        }
 
         # Write summary file
         summary_path = os.path.join(app.workdir, filename)
@@ -95,11 +102,11 @@ class SummaryReport:
             ColophonException if generate() hasn't been called prior to exit_code()
         """
         rcode = 0
-        if self.failures is None:
+        if self.failed is None:
             raise app.ColophonException("Could not determine exit code: Must call generate() before exit_code()")
         if (
-            self.failures or
-            (strict and (self.skips or self.unassociated))
+            self.failed or
+            (strict and (self.skipped or self.unassociated))
         ):
             rcode = 2
         return rcode

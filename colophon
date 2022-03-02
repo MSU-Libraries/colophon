@@ -105,8 +105,12 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
             stage_dir = os.path.join(app.workdir, mfid, stage.name)
             ready_script = stage.script(entry)
             rcode = app.write_output(stage_dir, *app.exec_command(ready_script, shell=True))
-            if rcode != 0:
-                fmsg = f"Script failure(stage={stage}, exit={rcode}): {ready_script}"
+            if rcode == 16:
+                fmsg = f"Script set entry as filtered (stage={stage}, exit={rcode}): {ready_script}"
+                entry.filtered(fmsg)
+                app.logger.info(fmsg)
+            elif rcode != 0:
+                fmsg = f"Script failure (stage={stage.name}, exit={rcode}): {ready_script}"
                 entry.failures.append(fmsg)
                 app.logger.info(fmsg)
 

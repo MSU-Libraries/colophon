@@ -9,8 +9,8 @@ import app
 
 class ManifestEntry(MutableMapping):
     def __init__(self, headers, values):
-        # Filtered entries are to be ignored
-        self.filtered: bool = False
+        # Filtered entries are skipped; reason for being skipped stored here
+        self.filtered: str = ""
         # Failure messages should any failures occur for this entry
         self.failures: list = []
         self.rowmap = dict(zip(headers, values))
@@ -42,7 +42,7 @@ class ManifestEntry(MutableMapping):
         del self.rowmap[key]
 
     def __repr__(self):
-        return f"ManifestEntry({self.rowmap}, filtered={self.filtered})"
+        return f"ManifestEntry({self.rowmap}, filtered={bool(self.filtered)})"
 
 class Manifest(MutableSequence):
     """
@@ -88,7 +88,7 @@ class Manifest(MutableSequence):
         return len(self.manifest)
 
     def count(self, filtered=False):
-        return len([0 for _ in self.manifest if _.filtered == filtered])
+        return len([0 for _ in self.manifest if bool(_.filtered) == filtered])
 
     def insert(self, idx, entry):
         self.manifest.insert(idx, entry)

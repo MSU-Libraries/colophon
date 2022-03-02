@@ -43,7 +43,7 @@ class SuiteStage:
         return render_template_string(self.raw_script, {**context, **app.globalctx}, shell=True)
 
     def __repr__(self):
-        return f"SuiteStage({self.name}, script={self.raw_script})"
+        return f"SuiteStage({self.name})"
 
 class Suite:
     """
@@ -80,20 +80,20 @@ class Suite:
         """
         return render_template_string(self.suite['manifest']['id'], manifest_entry).replace('/','_')
 
-    def filter(self, entry: ManifestEntry) -> bool:
+    def filter(self, entry: ManifestEntry) -> str:
         """
         Given a manifest row, determine if the row should be filtered (that is, excluded) from
         from this suite of tests.
         args:
             entry: The entry to check
         returns:
-            True if row has been filtered/excluded based on the suite filters
+            A string message describing why the row has been filtered/excluded, or empty string otherwise
         """
         filters = self.suite['manifest']['filter'] if 'filter' in self.suite['manifest'] else []
-        filtered = False
+        filtered = ""
         for filt in filters:
             if not value_match(entry[filt['value']], filt, entry):
-                filtered = True
+                filtered = f"Filter did not match: {filt}"
                 break
         return filtered
 
