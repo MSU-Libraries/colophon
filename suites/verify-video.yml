@@ -32,11 +32,15 @@ manifest:
     - label: mods
       startswith: "{{ basename }}"
       endswith: '_MODS.xml'
-    - label: assets
+    - label: asset
       multiple: true
       optional: true
       startswith: "{{ basename }}"
       regex: '_Asset.+\.tif$'
+    #- label: asset_hash
+    #  linkedto: asset
+    #  startswith: "{{ asset }}"
+    #  endswith: '.md5'
 
 stages:
   # Run access hash check
@@ -48,6 +52,9 @@ stages:
   # Run preservation hash check
   stage1.3:
     script: "scripts/verify-hash -c {{ pres }} -f {{ pres_hash }} -v -J {{ results_path }}"
+  # Run assets hash check
+  #stage1.4:
+  #  script: "scripts/verify-hash -c {{ asset }} -f {{ asset_hash }} -v -J {{ results_path }}"
 
   # Verify file fingerprint
   #stage2.1:

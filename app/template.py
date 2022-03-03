@@ -4,6 +4,7 @@ Template functionality
 import jinja2
 from jinja2.lexer import Token
 from jinja2.ext import Extension
+import app
 
 def escape_shell_arg(arg: str):
     """
@@ -41,5 +42,14 @@ def render_template_string(string: str, context: dict, shell=False) -> str:
         extensions=([ShellEscapeInjector] if shell else [])
     )
     env.filters['esh'] = escape_shell_arg
-    templ = env.from_string(string)
-    return templ.render(context)
+    try:
+        templ = env.from_string(string)
+        return templ.render(context)
+    except jinja2.exceptions.TemplateSyntaxError as exc:
+        fmsg = f"Jinja syntax {exc} in: {string}"
+        app.logger.error(fmsg)
+        raise app.ColophonException(fmsg) from None
+    except jinja2.exceptions.UndefinedError as exc:
+        fmsg = f"Jinja value {exc} inside: {string}"
+        app.logger.error(fmsg)
+        raise app.ColophonException(fmsg) from None

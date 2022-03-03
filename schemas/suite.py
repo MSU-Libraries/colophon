@@ -15,7 +15,8 @@ _file_match = deepcopy(_label_match)
 _file_match.update(
     {
         'multiple': { 'type': 'boolean' },
-        'optional': { 'type': 'boolean' }
+        'optional': { 'type': 'boolean' },
+        'linkedto': { 'type': 'string' }
     }
 )
 

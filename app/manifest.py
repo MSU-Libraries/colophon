@@ -9,11 +9,11 @@ import app
 
 class ManifestEntry(MutableMapping):
     def __init__(self, headers, values):
+        self.rowmap = dict(zip(headers, values))
         # Filtered entries are skipped; reason for being skipped stored here
         self.filtered: str = ""
         # Failure messages should any failures occur for this entry
         self.failures: list = []
-        self.rowmap = dict(zip(headers, values))
 
     def headers(self) -> list:
         """Keys for this row as a list"""

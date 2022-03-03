@@ -16,8 +16,8 @@ class FileInfo(MutableMapping):
         self.file['ext'] = fsplit[1][1:]
         fstat = os.stat(filepath)
         self.file['size'] = fstat.st_size
-        # Has this file been associated with something in the manifest
-        self.associated: bool = False
+        # Has file been associated with row in the manifest (empty string is unassociated)
+        self.associated: str = ''
 
     @property
     def filepath(self):
@@ -86,7 +86,7 @@ class Directory(MutableMapping):
     def files(self, associated: bool=True):
         """Iterate through files, returning only either associated/unassociated files"""
         for fpair in self:
-            if fpair[1].associated == associated:
+            if bool(fpair[1].associated) == associated:
                 yield fpair
 
     def __len__(self):
