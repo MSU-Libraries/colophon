@@ -37,10 +37,10 @@ manifest:
       optional: true
       startswith: "{{ basename }}"
       regex: '_Asset.+\.tif$'
-    #- label: asset_hash
-    #  linkedto: asset
-    #  startswith: "{{ asset }}"
-    #  endswith: '.md5'
+    - label: asset_hash
+      linkedto: asset
+      startswith: "{{ asset | basename }}"
+      endswith: '.md5'
 
 stages:
   # Run access hash check
@@ -55,6 +55,9 @@ stages:
   # Run assets hash check
   #stage1.4:
   #  script: "scripts/verify-hash -c {{ asset }} -f {{ asset_hash }} -v -J {{ results_path }}"
+  #  loopvars: # ?? auto detect this? or add warning if attempting to output a non-string var?
+  #    - asset
+  #    - asset_hash
 
   # Verify file fingerprint
   #stage2.1:

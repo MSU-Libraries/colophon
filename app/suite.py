@@ -92,7 +92,7 @@ class Suite:
             matcher = FileMatcher(entry, fmatch)
             matcher.process()
             total_files += matcher.files_matched
-            total_failures+ matcher.failures
+            total_failures += matcher.failures
         return total_files, total_failures
 
     def stages(self):

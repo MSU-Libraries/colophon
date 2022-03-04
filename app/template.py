@@ -1,6 +1,7 @@
 """
 Template functionality
 """
+import os
 import jinja2
 from jinja2.lexer import Token
 from jinja2.ext import Extension
@@ -42,6 +43,7 @@ def render_template_string(string: str, context: dict, shell=False) -> str:
         extensions=([ShellEscapeInjector] if shell else [])
     )
     env.filters['esh'] = escape_shell_arg
+    env.filters['basename'] = os.path.basename
     try:
         templ = env.from_string(string)
         return templ.render(context)
