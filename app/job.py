@@ -5,6 +5,7 @@ import os
 import tempfile
 import zipfile
 import app
+from app.manifest import ManifestEntry
 
 class ColophonJob:
     """Class to organize steps in running a Colophon job"""
@@ -33,30 +34,36 @@ class ColophonJob:
                 entry.failures.append(fmsg)
                 app.logger.warning(fmsg)
 
+    def _run_stages_on(self, entry: ManifestEntry):
+        """Run stages on a single entry"""
+        mfid = app.suite.manifest_id(entry)
+        for stage in app.suite.stages():
+            app.logger.debug(f"Running Stage(stage={stage.name}, manifest-id={mfid})")
+            stage_dir = os.path.join(app.workdir, mfid, stage.name)
+            for ready_script, stage_suffix in stage.script(entry):
+                rcode = app.write_output(
+                    f"{stage_dir}{stage_suffix}",
+                    *app.exec_command(ready_script, shell=True)
+                )
+                if rcode == 16:
+                    fmsg = f"Script set entry as filtered (stage={stage}{stage_suffix}, exit={rcode}): {ready_script}"
+                    entry.filtered(fmsg)
+                    app.logger.info(fmsg)
+                    raise StopProcessing
+                elif rcode != 0:
+                    fmsg = f"Script failure (stage={stage.name}{stage_suffix}, exit={rcode}): {ready_script}"
+                    entry.failures.append(fmsg)
+                    app.logger.info(fmsg)
+
     def run_stages(self):
         """For each manifest row, run scripts from stages"""
         for entry in app.manifest:
             if entry.filtered or entry.failures:
                 continue
-
-            mfid = app.suite.manifest_id(entry)
-            for stage in app.suite.stages():
-                app.logger.debug(f"Running Stage(stage={stage.name}, manifest-id={mfid})")
-                stage_dir = os.path.join(app.workdir, mfid, stage.name)
-                for ready_script, stage_suffix in stage.script(entry):
-                    rcode = app.write_output(
-                        f"{stage_dir}{stage_suffix}",
-                        *app.exec_command(ready_script, shell=True)
-                    )
-                    if rcode == 16:
-                        fmsg = f"Script set entry as filtered (stage={stage}{stage_suffix}, exit={rcode}): {ready_script}"
-                        entry.filtered(fmsg)
-                        app.logger.info(fmsg)
-                        break
-                    elif rcode != 0:
-                        fmsg = f"Script failure (stage={stage.name}{stage_suffix}, exit={rcode}): {ready_script}"
-                        entry.failures.append(fmsg)
-                        app.logger.info(fmsg)
+            try:
+                self._run_stages_on(entry)
+            except app.StopProcessing:
+                pass
 
     def generate_reports(self, strict: bool=False) -> int:
         """

@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+"""
+Colophon - File Quality Control Validator
+"""
 import os
 import sys
 import logging
 import json
+import tempfile
 import click
 import app
 # Add current path to sys path for loading libraries
@@ -30,6 +34,7 @@ CONTEXT_SETTINGS = {
     help="Provide details output while running")
 @click.option('-q', '--quiet', is_flag=True,
     help="Suppress output while running")
+# pylint: disable=too-many-arguments
 def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
     """Colophon - File Quality Control Validator"""
     # Create output dir if not provided
@@ -41,16 +46,16 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
         app.workdir = tempfile.mkdtemp()
 
     # Configure logging
-    fileHandler = logging.FileHandler(os.path.join(app.workdir, 'colophon.log'))
-    stderrHandler = logging.StreamHandler()
-    stderrHandler.setLevel(
+    file_handler = logging.FileHandler(os.path.join(app.workdir, 'colophon.log'))
+    stderr_handler = logging.StreamHandler()
+    stderr_handler.setLevel(
         logging.DEBUG if verbose else (logging.ERROR if quiet else logging.INFO)
     )
     logging.basicConfig(
         format="%(asctime)s [%(levelname)s] %(message)s",
         encoding='utf-8',
         level=logging.DEBUG,
-        handlers=[fileHandler, stderrHandler]
+        handlers=[file_handler, stderr_handler]
     )
     app.logger = logging.getLogger()
 
@@ -63,7 +68,7 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
 
     # Populate results JSON with empty dict
     results_path = os.path.join(app.workdir, 'results.json')
-    with open(results_path, 'w') as results_file:
+    with open(results_path, 'w', encoding='utf8') as results_file:
         json.dump({}, results_file)
     app.globalctx['results_path'] = results_path
 
@@ -78,4 +83,5 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
     return exit_code
 
 if __name__ == "__main__":
+    # pylint: disable=no-value-for-parameter
     sys.exit(main())
