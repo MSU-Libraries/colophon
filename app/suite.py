@@ -5,7 +5,6 @@ import os
 from copy import deepcopy
 import yaml
 import cerberus
-import jinja2
 import app
 from app.template import render_template_string
 from app.manifest import ManifestEntry
