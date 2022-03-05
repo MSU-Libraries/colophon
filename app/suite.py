@@ -2,6 +2,7 @@
 Colophon test Suite functionality
 """
 import os
+from copy import deepcopy
 import yaml
 import cerberus
 import jinja2
@@ -15,10 +16,35 @@ class SuiteStage:
     """A Stage within the suite"""
     def __init__(self, name, stage):
         self.name = name
-        self.raw_script = stage['script']
+        self.raw_script = stage["script"]
+        self.loopvars = stage.get("loopvars", [])
 
     def script(self, context):
-        return render_template_string(self.raw_script, {**context, **app.globalctx}, shell=True)
+        """
+        Run the script for the given context, looping over loopvars if set, yielding the result(s).
+        yields:
+            tuple(
+                ready_script_string: The rendered string, ready to execute
+                stage_suffix: A suffix string to append to the stage when using loopvar
+            )
+        """
+        pairs = [] if self.loopvars else [(context, '')]
+        if self.loopvars:
+            varcount = 0
+            for loopvar in self.loopvars:
+                #TODO verify all loopvars exist in context
+                #TODO verify all loopvars are of the same length
+                varcount = len(context[loopvar])
+
+            for idx in range(varcount):
+                # Copy context and set loopvar to appropriate index for given loop
+                loopctx = deepcopy(context)
+                for loopvar in self.loopvars:
+                    loopctx[loopvar] = loopctx[loopvar][idx]
+                pairs.append((loopctx, f".{idx}"))
+
+        for ctx, suf in pairs:
+            yield render_template_string(self.raw_script, {**ctx, **app.globalctx}, shell=True), suf
 
     def __repr__(self):
         return f"SuiteStage({self.name})"

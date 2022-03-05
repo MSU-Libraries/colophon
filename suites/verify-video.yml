@@ -53,11 +53,11 @@ stages:
   stage1.3:
     script: "scripts/verify-hash -c {{ pres }} -f {{ pres_hash }} -v -J {{ results_path }}"
   # Run assets hash check
-  #stage1.4:
-  #  script: "scripts/verify-hash -c {{ asset }} -f {{ asset_hash }} -v -J {{ results_path }}"
-  #  loopvars: # ?? auto detect this? or add warning if attempting to output a non-string var?
-  #    - asset
-  #    - asset_hash
+  stage1.4:
+    script: "scripts/verify-hash -c {{ asset }} -f {{ asset_hash }} -v -J {{ results_path }}"
+    loopvars:
+      - asset
+      - asset_hash
 
   # Verify file fingerprint
   #stage2.1:

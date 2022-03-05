@@ -56,7 +56,8 @@ class SummaryReport:
 
             # Exit-code summary per row
             summary['rows'][mfid] = (row := {})
-            row['exit-codes'] = rcode_counts(os.path.join(app.workdir, mfid))
+            if (exit_codes := rcode_counts(os.path.join(app.workdir, mfid))):
+                row['exit-codes'] = exit_codes
 
             # Failure reasons
             if entry.failures:
