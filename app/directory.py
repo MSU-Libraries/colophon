@@ -21,6 +21,7 @@ class FileInfo(MutableMapping):
 
     @property
     def filepath(self):
+        """Return the full filepath of file"""
         return os.path.join(self.file['path'], self.file['name'])
 
     def __iter__(self):
@@ -28,7 +29,7 @@ class FileInfo(MutableMapping):
             yield key
 
     def __len__(self):
-        return len(self.key)
+        return len(self.file)
 
     def __getitem__(self, key):
         return self.file[key]
@@ -77,7 +78,7 @@ class Directory(MutableMapping):
             raise app.ColophonException(f"Unable to read from specified directory: {os.path.abspath(self.dirpath)}")
         self.filelist = {}
         self.chdir()
-        for root, dirs, files in os.walk('.'):
+        for root, _, files in os.walk('.'):
             for filename in files:
                 filepath = os.path.join(root, filename).removeprefix("./")
                 self.filelist[filepath] = FileInfo(filepath)

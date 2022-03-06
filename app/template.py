@@ -15,8 +15,8 @@ def escape_shell_arg(arg: str):
 
 class ShellEscapeInjector(Extension):
     """Inject shell escape calls after template variables"""
-    def __init__(self, environment):
-        super().__init__(environment)
+    def parse(self, parser):
+        pass
 
     def filter_stream(self, stream):
         """Find variables, add shell escape"""

@@ -29,10 +29,25 @@ class SuiteStage:
         """
         pairs = [] if self.loopvars else [(context, '')]
         if self.loopvars:
-            varcount = 0
+            varcount = None
             for loopvar in self.loopvars:
-                #TODO verify all loopvars exist in context
-                #TODO verify all loopvars are of the same length
+                # Verify all loopvars exist in context
+                if loopvar not in context or not isinstance(context[loopvar], list):
+                    fmsg = (
+                        f"Unable to process stage '{self.name}'; loopvar "
+                        "'{loopvar}' must be a 'multiple: true' field."
+                    )
+                    app.logger.error(fmsg)
+                    app.StageProcessingFailure(fmsg)
+                # Verify all loopvars are of the same length
+                if varcount != len(context[loopvar]):
+                    fmsg = (
+                        f"Unable to process stage '{self.name}'; loopvar "
+                        f"'{loopvar}' length ({len(context[loopvar])}) does "
+                        f"not match other loopvars ({varcount})."
+                    )
+                    app.logger.error(fmsg)
+                    app.StageProcessingFailure(fmsg)
                 varcount = len(context[loopvar])
 
             for idx in range(varcount):
@@ -67,8 +82,8 @@ class Suite:
                 self.suite = yaml.load(mf_file, Loader=yaml.CLoader)
         except FileNotFoundError:
             raise app.ColophonException(f"Unable to open suite - file missing: {self.filepath}") from None
-        except yaml.parser.ParseError:
-            raise app.ColophonException(f"Unable to parse suite -- invalid YAML.") from None
+        except yaml.parser.ParserError:
+            raise app.ColophonException("Unable to parse suite -- invalid YAML.") from None
 
         # Assert structure
         cerbval = cerberus.Validator(suite)

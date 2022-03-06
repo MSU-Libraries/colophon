@@ -16,8 +16,8 @@ class ColophonJob:
         for entry in app.manifest:
             entry.filtered = app.suite.filter(entry)
         app.logger.debug(
-            f"Manifest rows: selected={app.manifest.count()}, "
-            f"filtered={app.manifest.count(True)}"
+            f"Manifest rows: selected={app.manifest.filtered(False)}, "
+            f"filtered={app.manifest.filtered(True)}"
         )
 
     def label_files(self):
@@ -40,20 +40,25 @@ class ColophonJob:
         for stage in app.suite.stages():
             app.logger.debug(f"Running Stage(stage={stage.name}, manifest-id={mfid})")
             stage_dir = os.path.join(app.workdir, mfid, stage.name)
-            for ready_script, stage_suffix in stage.script(entry):
-                rcode = app.write_output(
-                    f"{stage_dir}{stage_suffix}",
-                    *app.exec_command(ready_script, shell=True)
-                )
-                if rcode == 16:
-                    fmsg = f"Script set entry as filtered (stage={stage}{stage_suffix}, exit={rcode}): {ready_script}"
-                    entry.filtered(fmsg)
-                    app.logger.info(fmsg)
-                    raise StopProcessing
-                elif rcode != 0:
-                    fmsg = f"Script failure (stage={stage.name}{stage_suffix}, exit={rcode}): {ready_script}"
-                    entry.failures.append(fmsg)
-                    app.logger.info(fmsg)
+            try:
+                for ready_script, stage_suffix in stage.script(entry):
+                    rcode = app.write_output(
+                        f"{stage_dir}{stage_suffix}",
+                        *app.exec_command(ready_script, shell=True)
+                    )
+                    if rcode % 2 == 1:
+                        fmsg = f"Script failure (stage={stage.name}{stage_suffix}, exit={rcode}): {ready_script}"
+                        entry.failures.append(fmsg)
+                        app.logger.info(fmsg)
+                    if rcode & 16 == 16:
+                        fmsg = f"Script set entry as filtered (stage={stage}{stage_suffix}, exit={rcode}): {ready_script}"
+                        entry.filtered(fmsg)
+                        app.logger.info(fmsg)
+                        raise app.StopProcessing
+            except app.StageProcessingFailure:
+                fmsg = f"Stage could not be processed (stage={stage.name}, manifest-id={mfid}); see logs for details."
+                entry.failures.append(fmsg)
+                app.logger.info(fmsg)
 
     def run_stages(self):
         """For each manifest row, run scripts from stages"""
@@ -62,7 +67,7 @@ class ColophonJob:
                 continue
             try:
                 self._run_stages_on(entry)
-            except app.StopProcessing:
+            except app.EndStagesProcessing:
                 pass
 
     def generate_reports(self, strict: bool=False) -> int:
@@ -89,7 +94,7 @@ class ColophonJob:
             zipfile.ZipFile(ztemp, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=9) as zfile
         ):
             app.logger.debug(f"Bundling output into zip file: {ztemp.name}")
-            for root, dirs, files in os.walk(app.workdir):
+            for root, _, files in os.walk(app.workdir):
                 for fname in files:
                     filepath = os.path.join(root, fname)
                     zfile.write(

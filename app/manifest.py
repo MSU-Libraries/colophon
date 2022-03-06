@@ -4,10 +4,10 @@ Colophon Manifest functionality
 import os
 from collections.abc import MutableMapping, MutableSequence
 import csv
-import cerberus
 import app
 
 class ManifestEntry(MutableMapping):
+    """Represent a single row in the Manifest"""
     def __init__(self, headers, values):
         self.rowmap = dict(zip(headers, values))
         # Filtered entries are skipped; reason for being skipped stored here
@@ -45,9 +45,7 @@ class ManifestEntry(MutableMapping):
         return f"ManifestEntry({self.rowmap}, filtered={bool(self.filtered)})"
 
 class Manifest(MutableSequence):
-    """
-    The Manifest file wrapper
-    """
+    """The Manifest file wrapper"""
     def __init__(self, filepath: str=None):
         self.filepath = None
         self.headers = None
@@ -61,7 +59,7 @@ class Manifest(MutableSequence):
         self.headers = None
         self.manifest = None
         try:
-            with open(self.filepath, newline='') as mffile:
+            with open(self.filepath, newline='', encoding='utf8') as mffile:
                 csvr = csv.reader(mffile, dialect='unix')
                 self.manifest = []
                 for row in csvr:
@@ -87,11 +85,13 @@ class Manifest(MutableSequence):
     def __len__(self):
         return len(self.manifest)
 
-    def count(self, filtered=False):
+    def filtered(self, filtered=True):
+        """Return the number count of manifest entires based on their filtered status"""
         return len([0 for _ in self.manifest if bool(_.filtered) == filtered])
 
-    def insert(self, idx, entry):
-        self.manifest.insert(idx, entry)
+    def insert(self, index, value):
+        """Insert a new manifest entry at the given index"""
+        self.manifest.insert(index, value)
 
     def __repr__(self):
         return (

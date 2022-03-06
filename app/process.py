@@ -20,14 +20,14 @@ def exec_command(cmd: str|list, shell: bool=False, redirect_stderr: bool=False):
     cmd[0] = os.path.join(app.install_path, cmd[0])
     app.logger.debug(f"Executing (shell={shell}): {cmd}")
     stderr_tgt=subprocess.STDOUT if redirect_stderr else subprocess.PIPE
-    proc = subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=stderr_tgt)
-    stdout, stderr = proc.communicate()
-    app.logger.debug(f"Command exited with code: {proc.returncode}")
-    return (
-        proc.returncode,
-        stdout.splitlines(keepends=True),
-        [] if not stderr else stderr.splitlines(keepends=True)
-    )
+    with subprocess.Popen(cmd, shell=shell, stdout=subprocess.PIPE, stderr=stderr_tgt) as proc:
+        stdout, stderr = proc.communicate()
+        app.logger.debug(f"Command exited with code: {proc.returncode}")
+        return (
+            proc.returncode,
+            stdout.splitlines(keepends=True),
+            [] if not stderr else stderr.splitlines(keepends=True)
+        )
 
 def write_output(
     directory: str,
@@ -45,7 +45,7 @@ def write_output(
         The rcode passed in
     """
     pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
-    with open(os.path.join(directory, f"rcode.{rcode}"), 'a') as rof:
+    with open(os.path.join(directory, f"rcode.{rcode}"), 'a', encoding='utf8') as rof:
         rof.write(f"{rcode}")
     with open(os.path.join(directory, stdout_file), 'ab') as sof:
         sof.writelines(stdout)
