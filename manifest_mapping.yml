@@ -1,9 +1,0 @@
----
-skiprows: 1
-columns:
-  - column: b
-    label: mediatype
-  - column: c
-    label: basename
-  - column: f
-    label: title
