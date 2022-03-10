@@ -75,9 +75,12 @@ class Directory(MutableMapping):
 
         self.dirpath = dirpath.rstrip('/') if dirpath else self.dirpath
         if not os.path.isdir(self.dirpath) or not os.access(self.dirpath, os.R_OK):
-            raise app.ColophonException(f"Unable to read from specified directory: {os.path.abspath(self.dirpath)}")
+            raise app.ColophonException(
+                f"Unable to read from specified directory: {os.path.abspath(self.dirpath)}"
+            )
         self.filelist = {}
         self.chdir()
+        app.logger.info(f"Building file list for: {os.path.basename(self.dirpath)}")
         for root, _, files in os.walk('.'):
             for filename in files:
                 filepath = os.path.join(root, filename).removeprefix("./")

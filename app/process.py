@@ -41,6 +41,13 @@ def write_output(
     Append the given output lines to files within the directory, creating the
     directory and files if needed. Create/append to an rcode file the given
     rcode provided.
+    Args:
+        directory: The directory to write into; will be created if doesn't exist
+        rcode: The return code (exit code)
+        stdout:
+        stderr:
+        stdout_file:
+        stderr_file:
     Returns:
         The rcode passed in
     """

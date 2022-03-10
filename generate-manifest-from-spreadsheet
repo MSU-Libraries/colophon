@@ -3,6 +3,7 @@ import argparse
 import csv
 import yaml
 import os
+import time
 import subprocess
 import sys
 import tempfile
@@ -150,6 +151,8 @@ def read_spreadsheet(filename: str, skip_rows: int=0):
                 tdir,
                 os.path.splitext(os.path.basename(filename))[0] + ".csv"
             )
+        # Allow time for CSV file to finish saving
+        time.sleep(1)
 
         if csv_filename and ecode == 0:
             with open(csv_filename) as readcsv:

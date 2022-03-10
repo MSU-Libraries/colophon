@@ -9,14 +9,16 @@ import app
 
 class ManifestReport:
     """Report for files left unassociated"""
-    def generate(self, savedir: str=None, filename: str="manifest.csv"):
+    @staticmethod
+    def generate(savedir: str=None, filename: str="manifest.csv"):
         """Create report and save in workdir"""
         savedir = savedir if savedir else app.workdir
+        # pylint: disable=unsubscriptable-object
         mfrows = [app.manifest[0].headers() if len(app.manifest) else app.manifest.headers]
         for entry in app.manifest:
             mfrows.append(entry.values())
         mfcsv_path = os.path.join(app.workdir, filename)
-        with open(mfcsv_path, 'w', newline='') as mfcsv_file:
+        with open(mfcsv_path, 'w', newline='', encoding='utf8') as mfcsv_file:
             mfcsv = csv.writer(mfcsv_file, quoting=csv.QUOTE_ALL)
             mfcsv.writerows(mfrows)
 
@@ -27,7 +29,7 @@ def rcode_counts(search_dir: str):
     count of matching files grouped by N.
     """
     rcodes = defaultdict(int)
-    for root, dirs, files in os.walk(search_dir):
+    for _, _, files in os.walk(search_dir):
         for fname in files:
             if fname.startswith("rcode."):
                 rcodes[fname.removeprefix("rcode.")] += 1
@@ -87,7 +89,7 @@ class SummaryReport:
 
         # Write summary file
         summary_path = os.path.join(app.workdir, filename)
-        with open(summary_path, 'w') as summary_file:
+        with open(summary_path, 'w', encoding='utf8') as summary_file:
             json.dump(summary, summary_file, indent=2)
             summary_file.write('\n')
 
@@ -104,7 +106,9 @@ class SummaryReport:
         """
         rcode = 0
         if self.failed is None:
-            raise app.ColophonException("Could not determine exit code: Must call generate() before exit_code()")
+            raise app.ColophonException(
+                "Could not determine exit code: Must call generate() before exit_code()"
+            )
         if (
             self.failed or
             (strict and (self.skipped or self.unassociated))

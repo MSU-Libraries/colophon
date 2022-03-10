@@ -78,7 +78,7 @@ class Suite:
         self.filepath = filepath.rstrip('/') if filepath else self.filepath
         self.suite = None
         try:
-            with open(self.filepath) as mf_file:
+            with open(self.filepath, encoding='utf8') as mf_file:
                 self.suite = yaml.load(mf_file, Loader=yaml.CLoader)
         except FileNotFoundError:
             raise app.ColophonException(f"Unable to open suite - file missing: {self.filepath}") from None

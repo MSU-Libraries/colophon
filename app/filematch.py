@@ -7,15 +7,21 @@ from app.template import render_template_string
 from app.manifest import ManifestEntry
 from app.directory import FileInfo
 
-def value_match(value: str, conditions: dict, context: dict = {}):
+def value_match(value: str, conditions: dict, context: dict = None):
     """
     Check if the value meets all passed conditions
     """
+    if context is None:
+        context = {}
     matched = True
     ignorecase = conditions.get('ignorecase', False)
     def prep(string):
         """Preprocess string before comparison"""
-        string = render_template_string(string, context)
+        try:
+            string = render_template_string(string, context)
+        except TypeError as exc:
+            app.logger.error(f"Could not render string ({string}): {exc}")
+            raise exc
         return string.lower() if ignorecase else string
 
     for ckey, cval in conditions.items():
@@ -35,6 +41,7 @@ class FileMatcher:
     Attempt to match a file(s) for the given entry. If matched, label them in the global
     manifest and associated them in the global app Directory.
     """
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, entry: ManifestEntry, file_match: dict):
         self.files = []
         self.failures = 0
@@ -52,9 +59,11 @@ class FileMatcher:
 
     @property
     def files_matched(self):
+        """Total number of matched files"""
         return len(self.files)
 
     def manifest_id(self):
+        """Returns the rendered manifest_id for the current manifest entry"""
         return app.suite.manifest_id(self.entry)
 
     def _assert_linkedto_exists(self):
@@ -98,6 +107,9 @@ class FileMatcher:
             )
 
     def associate_file(self, finfo: FileInfo):
+        """
+        Set the given file as associated, or tag a failure if the file was already associated.
+        """
         if finfo.associated:
             self.failures += 1
             app.logger.error(
@@ -108,9 +120,14 @@ class FileMatcher:
 
     @property
     def label(self):
+        """Get the filematch label"""
         return self.fmatch['label']
 
     def set_label(self, value):
+        """
+        Set the label value in the current entry.
+        Will be a list that is appended to if the match is designated as 'multiple: true'
+        """
         if self.label not in self.entry:
             self.entry[self.label] = [] if self.multiple else None
 

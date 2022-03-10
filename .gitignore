@@ -2,5 +2,6 @@
 *.xls
 *.xlsx
 *.csv
+.coverage
 __pycache__
 example_*

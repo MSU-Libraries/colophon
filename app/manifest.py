@@ -67,7 +67,9 @@ class Manifest(MutableSequence):
                         self.headers = row
                         continue
                     if len(row) != len(self.headers):
-                        raise app.ColophonException(f"Column count in row {len(self.manifest)+2} does not match header.")
+                        raise app.ColophonException(
+                            f"Column count in row {len(self.manifest)+2} does not match header."
+                        )
                     self.manifest.append(ManifestEntry(self.headers, row))
         except FileNotFoundError:
             raise app.ColophonException(f"Unable to open manifest - file missing: {self.filepath}") from None

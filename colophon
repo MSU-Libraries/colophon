@@ -73,6 +73,7 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
     app.globalctx['results_path'] = results_path
 
     # TODO Retry failures from previous run
+    retry # pylint: disable=pointless-statement
 
     job = app.ColophonJob()
     job.apply_filters()
