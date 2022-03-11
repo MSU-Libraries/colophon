@@ -22,6 +22,24 @@ class ManifestReport:
             mfcsv = csv.writer(mfcsv_file, quoting=csv.QUOTE_ALL)
             mfcsv.writerows(mfrows)
 
+class IgnoredReport:
+    """Report for files left unassociated"""
+    @staticmethod
+    def generate(savedir: str=None, filename: str="ignored.json"):
+        """Create report and save in workdir"""
+        savedir = savedir if savedir else app.workdir
+        ignored = []
+
+        for entry in app.manifest:
+            mfid = app.suite.manifest_id(entry)
+            if entry.ignored:
+                ignored.append(mfid)
+
+        ignored_path = os.path.join(app.workdir, filename)
+        with open(ignored_path, 'w', encoding='utf8') as ignored_file:
+            json.dump(ignored, ignored_file, indent=2)
+            ignored_file.write('\n')
+
 def rcode_counts(search_dir: str):
     """
     Given a directory, find all files in the form "rcode.N"

@@ -101,7 +101,7 @@ class ColophonJob:
                 raise app.StopProcessing
 
     @staticmethod
-    def generate_reports(strict: bool=False) -> int:
+    def generate_reports(strict: bool=False, ignore_missing: bool=False) -> int:
         """
         Do calls to compile reports and determine exit_code
         args:
@@ -111,6 +111,10 @@ class ColophonJob:
         """
         app.logger.debug("Generating final manifest CSV.")
         app.report.ManifestReport().generate()
+
+        if ignore_missing:
+            app.logger.debug("Generating ignored manifest rows list.")
+            app.report.IgnoredReport().generate()
 
         app.logger.debug("Generating summary JSON report.")
         summary = app.report.SummaryReport()
