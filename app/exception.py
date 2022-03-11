@@ -10,3 +10,11 @@ class EndStagesProcessing(Exception):
 
 class StageProcessingFailure(Exception):
     """Exception to jump out of stages for current manifest entry"""
+
+class TemplateRenderFailure(Exception):
+    """Exception from a failed attempt to Jinja render"""
+
+# TODO move exception messages here
+messages = {
+    '': '',
+}

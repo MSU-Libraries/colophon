@@ -12,8 +12,17 @@ class ManifestEntry(MutableMapping):
         self.rowmap = dict(zip(headers, values))
         # Filtered entries are skipped; reason for being skipped stored here
         self.filtered: str = ""
+        # Ignored entries are skipped due to there being no files matched.
+        self.ignored: bool = False
         # Failure messages should any failures occur for this entry
         self.failures: list = []
+        # List of files associated with this entry
+        self.associated: list = []
+
+    @property
+    def skipped(self):
+        """Returns True if entry is either filtered or skipped"""
+        return bool(self.filtered) or self.ignored
 
     def headers(self) -> list:
         """Keys for this row as a list"""
@@ -42,7 +51,10 @@ class ManifestEntry(MutableMapping):
         del self.rowmap[key]
 
     def __repr__(self):
-        return f"ManifestEntry({self.rowmap}, filtered={bool(self.filtered)})"
+        return (
+            f"ManifestEntry({self.rowmap}, files={len(self.associated)}, "
+            f"filtered={bool(self.filtered)}, ignored={self.ignored})"
+        )
 
 class Manifest(MutableSequence):
     """The Manifest file wrapper"""
@@ -87,9 +99,26 @@ class Manifest(MutableSequence):
     def __len__(self):
         return len(self.manifest)
 
-    def filtered(self, filtered=True):
-        """Return the number count of manifest entires based on their filtered status"""
-        return len([0 for _ in self.manifest if bool(_.filtered) == filtered])
+    def selected(self):
+        """
+        Returns the number count of manifest entries that were not skipped.
+        """
+        return len(self.manifest) - self.skipped()
+
+    def skipped(self, *, filtered: bool=True, ignored: bool=True):
+        """
+        Return the number count of manifest entires skipped based on their status
+        Args:
+            filtered: If True (default), will include entries that have been filtered in the count
+            ignored: If True (default), will include entries that have been ignored in the count
+        """
+        return len([
+            0 for _ in self.manifest
+            if (
+                bool(_.filtered) == filtered == True
+                or _.ignored == ignored == True
+            )
+        ])
 
     def insert(self, index, value):
         """Insert a new manifest entry at the given index"""

@@ -17,15 +17,16 @@ class ColophonJob:
         app.logger.debug("Applying suite filter to manifest...")
         for entry in app.manifest:
             entry.filtered = app.suite.filter(entry)
-        app.logger.debug(
-            f"Manifest rows: selected={app.manifest.filtered(False)}, "
-            f"filtered={app.manifest.filtered(True)}"
-        )
 
     @staticmethod
-    def label_files():
-        """For each manifest row, match/associate files to that row"""
+    def label_files(ignore_missing: bool):
+        """
+        For each manifest row, match/associate files to that row
+        Args:
+            ignore_missing: If True, then ignore manifest entries when no files are matched
+        """
         for entry in app.manifest:
+            app.LogBuffer.start_buffer()
             app.logger.debug(f"Labeling files for manifest row: {app.suite.manifest_id(entry)}")
             matched, failed = app.suite.label_files(entry)
             app.logger.debug(f"Files-found={matched}, failed-labels={failed}")
@@ -36,12 +37,19 @@ class ColophonJob:
                 )
                 entry.failures.append(fmsg)
                 app.logger.warning(fmsg)
+            entry.ignored = (ignore_missing and matched == 0)
+            app.LogBuffer.end_buffer(discard=entry.ignored)
+        app.logger.debug(
+            f"Manifest rows: selected={app.manifest.selected()}, "
+            f"filtered={app.manifest.skipped(ignored=False)}, "
+            f"ignored={app.manifest.skipped(filtered=False)}"
+        )
 
     @classmethod
     def run_stages(cls):
         """For each manifest row, run scripts from stages"""
         for entry in app.manifest:
-            if entry.filtered or entry.failures:
+            if entry.skipped or entry.failures:
                 continue
             try:
                 cls._run_stages_on(entry)

@@ -26,8 +26,10 @@ CONTEXT_SETTINGS = {
     help="The source directory in which to find files defined by the suite and manifest")
 @click.option('-w', '--workdir', type=str, metavar='WORKDIR',
     help="A directory where to store temp files and results")
-@click.option('-r', '--retry', type=str, metavar='FAILED',
-    help="Re-run failed tests specified in provided JSON file from previous run")
+@click.option('-r', '--retry', type=str, metavar='ZIP',
+    help="Re-run failed suite stages from the provided output zip file")
+@click.option('-i', '--ignore-missing', is_flag=True,
+    help="Ignore manifest entries that have no files matched.")
 @click.option('-t', '--strict', is_flag=True,
     help="Exit code 0 only with no manifest entries skipped and no unassociated files")
 @click.option('-v', '--verbose', is_flag=True,
@@ -35,7 +37,7 @@ CONTEXT_SETTINGS = {
 @click.option('-q', '--quiet', is_flag=True,
     help="Suppress output while running")
 # pylint: disable=too-many-arguments
-def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
+def main(manifest, suite, sourcedir, workdir, retry, ignore_missing, strict, verbose, quiet):
     """Colophon - File Quality Control Validator"""
     # Create output dir if not provided
     if workdir is not None:
@@ -77,7 +79,7 @@ def main(manifest, suite, sourcedir, workdir, retry, strict, verbose, quiet):
 
     job = app.ColophonJob()
     job.apply_filters()
-    job.label_files()
+    job.label_files(ignore_missing)
     job.run_stages()
     exit_code = job.generate_reports(strict)
     print(job.zip_output())

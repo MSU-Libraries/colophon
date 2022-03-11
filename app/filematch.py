@@ -20,8 +20,8 @@ def value_match(value: str, conditions: dict, context: dict = None):
         try:
             string = render_template_string(string, context)
         except TypeError as exc:
-            app.logger.error(f"Could not render string ({string}): {exc}")
-            raise exc
+            app.logger.error(f"Could not render string \"{string}\": {exc}")
+            raise app.TemplateRenderFailure
         return string.lower() if ignorecase else string
 
     for ckey, cval in conditions.items():
@@ -69,7 +69,8 @@ class FileMatcher:
     def _assert_linkedto_exists(self):
         if self.linkedto and self.linkedto not in self.entry:
             app.logger.error(
-                f"Suite manifest.files has 'linkedto: {self.linkedto}', a field which does not exist."
+                f"Suite manifest.files has 'linkedto: {self.linkedto}', but the "
+                f"'{self.linkedto}' field does not exist."
             )
             self.failures += 1
         elif self.linkedto and not isinstance(self.entry[self.linkedto], list):
@@ -82,7 +83,7 @@ class FileMatcher:
     def _assert_valid_optional(self):
         if self.files_matched == 0 and not self.optional:
             self.failures += 1
-            app.logger.error(
+            app.logger.warning(
                 f"Manifest(id={self.manifest_id()}) was required to match a file "
                 f"for label '{self.label}', but no matching files were found."
             )
@@ -117,6 +118,7 @@ class FileMatcher:
             )
         else:
             finfo.associated = self.manifest_id()
+            self.entry.associated.append(finfo.filepath)
 
     @property
     def label(self):
@@ -191,12 +193,18 @@ class FileMatcher:
                 entry_ctx[self.linkedto] = entry_ctx[self.linkedto][link_idx]
 
             # Search all files to find a match
-            for fpath, finfo in app.sourcedir:
-                context = {**entry_ctx, **{'file': dict(finfo)}}
-                if value_match(self.fmatch.get('value', '{{ file.name }}'), self.fmatch, context):
-                    self.set_label(fpath)
-                    self.associate_file(finfo)
-                    self.set_file(filepath=finfo.filepath)
+            try:
+                for fpath, finfo in app.sourcedir:
+                    context = {**entry_ctx, **{'file': dict(finfo)}}
+                    if value_match(self.fmatch.get('value', '{{ file.name }}'), self.fmatch, context):
+                        self.set_label(fpath)
+                        self.associate_file(finfo)
+                        self.set_file(filepath=finfo.filepath)
+            except app.TemplateRenderFailure:
+                app.logger.warning(
+                    f"Encounted template failure during file match for {self.manifest_id()}; "
+                    "stopping further file match attempts for this manifest entry."
+                )
             # For linked files, populate misses with null to indicate missed match
             if link_idx is not None and not self._linked_filepath:
                 self.files.append(None)

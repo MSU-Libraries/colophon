@@ -40,7 +40,7 @@ class SuiteStage:
                     app.logger.error(fmsg)
                     app.StageProcessingFailure(fmsg)
                 # Verify all loopvars are of the same length
-                if varcount != len(context[loopvar]):
+                if varcount and varcount != len(context[loopvar]):
                     fmsg = (
                         f"Unable to process stage '{self.name}'; loopvar "
                         f"'{loopvar}' length ({len(context[loopvar])}) does "
