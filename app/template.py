@@ -48,10 +48,8 @@ def render_template_string(string: str, context: dict, shell=False) -> str:
         templ = env.from_string(string)
         return templ.render(context)
     except jinja2.exceptions.TemplateSyntaxError as exc:
-        fmsg = f"Jinja syntax {exc} in: {string}"
-        app.logger.error(fmsg)
-        raise app.ColophonException(fmsg) from None
+        fmsg = f"Jinja syntax had {exc} in `{string}`"
+        raise app.TemplateRenderFailure(fmsg) from None
     except jinja2.exceptions.UndefinedError as exc:
-        fmsg = f"Jinja value {exc} inside: {string}"
-        app.logger.error(fmsg)
-        raise app.ColophonException(fmsg) from None
+        fmsg = f"Jinja value {exc} inside `{string}`"
+        raise app.TemplateRenderFailure(fmsg) from None

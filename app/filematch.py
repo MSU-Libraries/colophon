@@ -20,8 +20,9 @@ def value_match(value: str, conditions: dict, context: dict = None):
         try:
             string = render_template_string(string, context)
         except TypeError as exc:
-            app.logger.error(f"Could not render string \"{string}\": {exc}")
-            raise app.TemplateRenderFailure
+            fmsg = f"Could not render string \"{string}\": {exc}"
+            app.logger.error(fmsg)
+            raise app.TemplateRenderFailure(fmsg) from None
         return string.lower() if ignorecase else string
 
     for ckey, cval in conditions.items():
@@ -194,10 +195,10 @@ class FileMatcher:
                         self.set_label(fpath)
                         self.associate_file(finfo)
                         self.set_file(filepath=finfo.filepath)
-            except app.TemplateRenderFailure:
-                app.logger.warning(
-                    f"Encounted template failure during file match for {self.manifest_id()}; "
-                    "stopping further file match attempts for this manifest entry."
+            except app.TemplateRenderFailure as exc:
+                self.failures.append(
+                    f"Encounted template render failure during file match for {self.manifest_id()}; "
+                    f"stopping further file match attempts for this manifest entry. Error was: {exc}"
                 )
             # For linked files, populate misses with null to indicate missed match
             if link_idx is not None and not self._linked_filepath:

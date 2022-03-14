@@ -33,21 +33,15 @@ class SuiteStage:
             for loopvar in self.loopvars:
                 # Verify all loopvars exist in context
                 if loopvar not in context or not isinstance(context[loopvar], list):
-                    fmsg = (
-                        f"Unable to process stage '{self.name}'; loopvar "
-                        "'{loopvar}' must be a 'multiple: true' field."
-                    )
-                    app.logger.error(fmsg)
-                    app.StageProcessingFailure(fmsg)
+                    fmsg = f"The loopvar '{loopvar}' must be a 'multiple: true' field."
+                    raise app.StageProcessingFailure(fmsg)
                 # Verify all loopvars are of the same length
                 if varcount and varcount != len(context[loopvar]):
                     fmsg = (
-                        f"Unable to process stage '{self.name}'; loopvar "
-                        f"'{loopvar}' length ({len(context[loopvar])}) does "
-                        f"not match other loopvars ({varcount})."
+                        f"The loopvar '{loopvar}' length ({len(context[loopvar])}) does "
+                        f"not match that of other loopvars ({varcount})."
                     )
-                    app.logger.error(fmsg)
-                    app.StageProcessingFailure(fmsg)
+                    raise app.StageProcessingFailure(fmsg)
                 varcount = len(context[loopvar])
 
             for idx in range(varcount):

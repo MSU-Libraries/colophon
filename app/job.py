@@ -21,7 +21,7 @@ class ColophonJob:
     @staticmethod
     def label_files(ignore_missing: bool):
         """
-        For each manifest row, match/associate files to that row
+        For each manifest row, match/associate files to that row.
         Args:
             ignore_missing: If True, then ignore manifest entries when no files are matched
         """
@@ -32,11 +32,11 @@ class ColophonJob:
             matched, failures = app.suite.label_files(entry)
             app.logger.debug(f"Files-found={matched}, failed-labels={len(failures)}")
             entry.ignored = (ignore_missing and matched == 0)
-            if failures and not entry.ignored:
+            if failures and not entry.skipped:
                 for fmsg in failures:
                     entry.failures.append(fmsg)
                     app.logger.error(fmsg)
-            app.LogBuffer.end_buffer(discard=entry.ignored)
+            app.LogBuffer.end_buffer(discard=entry.skipped)
         app.logger.debug(
             f"Manifest rows: selected={app.manifest.selected()}, "
             f"filtered={app.manifest.skipped(ignored=False)}, "
@@ -69,7 +69,14 @@ class ColophonJob:
                     "see logs for details."
                 )
                 entry.failures.append(fmsg)
-                app.logger.info(fmsg)
+                app.logger.error(fmsg)
+            except app.TemplateRenderFailure as exc:
+                fmsg = (
+                    f"Stage could not be processed (stage={stage.name}, manifest-id={mfid}); "
+                    f"script template render failed. Error was: {exc}"
+                )
+                entry.failures.append(fmsg)
+                app.logger.error(fmsg)
 
     @staticmethod
     def _run_scripts_for(stage: SuiteStage, stage_basedir: str, entry: ManifestEntry):
@@ -96,7 +103,7 @@ class ColophonJob:
                 )
                 entry.filtered(fmsg)
                 app.logger.info(fmsg)
-                raise app.StopProcessing
+                raise app.EndStagesProcessing
 
     @staticmethod
     def generate_reports(strict: bool=False, ignore_missing: bool=False) -> int:

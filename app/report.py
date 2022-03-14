@@ -102,7 +102,7 @@ class SummaryReport:
         self.unassociated = len(summary['unassociated-files'])
 
         # Manifest row overview
-        succeeded = len([ent for ent in app.manifest if not ent.filtered and not ent.failures])
+        succeeded = len([ent for ent in app.manifest if not ent.skipped and not ent.failures])
         summary['row-overview'] = {
             'succeeded': succeeded,
             'failed': self.failed,
