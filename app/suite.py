@@ -127,7 +127,7 @@ class Suite:
               - A count of the number of failures to match files
         """
         file_matches = self.suite['manifest']['files']
-        total_files, total_failures = 0, 0
+        total_files, total_failures = 0, []
         for fmatch in file_matches:
             matcher = FileMatcher(entry, fmatch)
             matcher.process()

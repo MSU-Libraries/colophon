@@ -26,18 +26,16 @@ class ColophonJob:
             ignore_missing: If True, then ignore manifest entries when no files are matched
         """
         for entry in app.manifest:
+            # TODO make log buffering thread safe
             app.LogBuffer.start_buffer()
             app.logger.debug(f"Labeling files for manifest row: {app.suite.manifest_id(entry)}")
-            matched, failed = app.suite.label_files(entry)
-            app.logger.debug(f"Files-found={matched}, failed-labels={failed}")
-            if failed:
-                fmsg = (
-                    f"Manifest(id={app.suite.manifest_id(entry)}) encountered "
-                    f"{failed} failures while creating file labels."
-                )
-                entry.failures.append(fmsg)
-                app.logger.warning(fmsg)
+            matched, failures = app.suite.label_files(entry)
+            app.logger.debug(f"Files-found={matched}, failed-labels={len(failures)}")
             entry.ignored = (ignore_missing and matched == 0)
+            if failures and not entry.ignored:
+                for fmsg in failures:
+                    entry.failures.append(fmsg)
+                    app.logger.error(fmsg)
             app.LogBuffer.end_buffer(discard=entry.ignored)
         app.logger.debug(
             f"Manifest rows: selected={app.manifest.selected()}, "

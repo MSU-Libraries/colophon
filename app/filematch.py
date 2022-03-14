@@ -44,7 +44,7 @@ class FileMatcher:
     # pylint: disable=too-many-instance-attributes
     def __init__(self, entry: ManifestEntry, file_match: dict):
         self.files = []
-        self.failures = 0
+        self.failures = []
         self.entry = entry
         self.fmatch = file_match
         self.optional = self.fmatch.get('optional', False)
@@ -68,40 +68,35 @@ class FileMatcher:
 
     def _assert_linkedto_exists(self):
         if self.linkedto and self.linkedto not in self.entry:
-            app.logger.error(
+            self.failures.append(
                 f"Suite manifest.files has 'linkedto: {self.linkedto}', but the "
                 f"'{self.linkedto}' field does not exist."
             )
-            self.failures += 1
         elif self.linkedto and not isinstance(self.entry[self.linkedto], list):
-            app.logger.error(
+            self.failures.append(
                 f"Suite manifest.files has 'linkedto: {self.linkedto}', but '{self.linkedto}' "
                 "does not have 'multiple: true' set."
             )
-            self.failures += 1
 
     def _assert_valid_optional(self):
-        if self.files_matched == 0 and not self.optional:
-            self.failures += 1
-            app.logger.warning(
+        if self.files_matched == 0 and not self.optional and not self.linkedto:
+            self.failures.append(
                 f"Manifest(id={self.manifest_id()}) was required to match a file "
-                f"for label '{self.label}', but no matching files were found."
+                f"for label '{self.label}', but no matching file was found."
             )
         if self.linkedto and not self.optional and not all(self.files):
-            self.failures += 1
-            app.logger.error(
-                f"Manifest(id={self.manifest_id()}) was required and 'linkedto: {self.linkedto}' "
-                f"for label '{self.label}', but not all linked files were found:"
-                "\n - " + "\n - ".join(map(
+            self.failures.append(
+                f"Manifest(id={self.manifest_id()}) was required to match files for "
+                f"label '{self.label}', each being 'linkedto: {self.linkedto}', but not "
+                "all linked files were found:\n { " + " }\n { ".join(map(
                     lambda x: f"{x[0]}: {x[1]}",
                     zip(self.entry[self.linkedto], self.files)
-                ))
+                )) + " }\n"
             )
 
     def _assert_valid_multiple(self):
         if self.files_matched > 1 and not self.multiple:
-            self.failures += 1
-            app.logger.error(
+            self.failures.append(
                 f"Manifest(id={self.manifest_id()}) matched muliple files for "
                 f"'{self.label}' where only a single file match was allowed:"
                 "\n - " + "\n - ".join(self.files)
@@ -112,8 +107,7 @@ class FileMatcher:
         Set the given file as associated, or tag a failure if the file was already associated.
         """
         if finfo.associated:
-            self.failures += 1
-            app.logger.error(
+            self.failures.append(
                 f"Manifest(id={self.manifest_id()} matched an already associated file: {finfo}"
             )
         else:
@@ -130,9 +124,6 @@ class FileMatcher:
         Set the label value in the current entry.
         Will be a list that is appended to if the match is designated as 'multiple: true'
         """
-        if self.label not in self.entry:
-            self.entry[self.label] = [] if self.multiple else None
-
         if self.multiple:
             self.entry[self.label].append(value)
         else:
@@ -158,8 +149,7 @@ class FileMatcher:
             if self._linked_index is not None:
                 # Trigger failure if attempting to set multiple files for linkedto index
                 if bool(filepath) == bool(self._linked_filepath) == True:
-                    self.failures += 1
-                    app.logger.error(
+                    self.failures.append(
                         f"Manifest(id={self.manifest_id()}) matched multiple files for "
                         f"linked '{self.label}' at index {self._linked_index}; "
                         f"previously matched: {self._linked_filepath}; "
@@ -183,6 +173,10 @@ class FileMatcher:
         linked_idxs = [None]
         if isinstance(self.entry.get(self.linkedto), list):
             linked_idxs = range(len(self.entry[self.linkedto]))
+
+        # Default to empty
+        if self.label not in self.entry:
+            self.entry[self.label] = [] if self.multiple else None
 
         # Loop for files linked to another multiple-files match
         for link_idx in linked_idxs:

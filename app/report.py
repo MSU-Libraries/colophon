@@ -14,7 +14,7 @@ class ManifestReport:
         """Create report and save in workdir"""
         savedir = savedir if savedir else app.workdir
         # pylint: disable=unsubscriptable-object
-        mfrows = [app.manifest[0].headers() if len(app.manifest) else app.manifest.headers]
+        mfrows = [max(app.manifest, key=len).headers() if len(app.manifest) else app.manifest.headers]
         for entry in app.manifest:
             mfrows.append(entry.values())
         mfcsv_path = os.path.join(app.workdir, filename)
@@ -71,7 +71,11 @@ class SummaryReport:
             'rows': {}
         }
 
+        ignored = 0
         for entry in app.manifest:
+            if entry.ignored:
+                ignored += 1
+                continue
             mfid = app.suite.manifest_id(entry)
 
             # Exit-code summary per row
@@ -104,6 +108,8 @@ class SummaryReport:
             'failed': self.failed,
             'skipped': self.skipped
         }
+        if ignored:
+            summary['row-overview']['ignored'] = ignored
 
         # Write summary file
         summary_path = os.path.join(app.workdir, filename)

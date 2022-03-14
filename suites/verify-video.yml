@@ -36,10 +36,19 @@ manifest:
       multiple: true
       optional: true
       startswith: "{{ basename }}"
-      regex: '_Asset.+\.tif$'
+      regex: '_Asset.*\.tif$'
     - label: asset_hash
       linkedto: asset
       startswith: "{{ asset | basename }}"
+      endswith: '.md5'
+    - label: ephemera
+      multiple: true
+      optional: true
+      startswith: "{{ basename }}"
+      regex: '_Ephemera.*\.tif$'
+    - label: ephemera_hash
+      linkedto: ephemera
+      startswith: "{{ ephemera | basename }}"
       endswith: '.md5'
 
 stages:
