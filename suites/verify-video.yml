@@ -67,6 +67,12 @@ stages:
     loopvars:
       - asset
       - asset_hash
+  # Run ephemera hash check
+  stage1.4:
+    script: "scripts/verify-hash -c {{ ephemera }} -f {{ ephemera_hash }} -v -J {{ results_path }}"
+    loopvars:
+      - ephemera
+      - ephemera_hash
 
   # Verify file fingerprint
   #stage2.1:
