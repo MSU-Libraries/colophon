@@ -7,6 +7,8 @@ from jinja2.lexer import Token
 from jinja2.ext import Extension
 import app
 
+COMPILED_TEMPLATES = {}
+
 def escape_shell_arg(arg: str):
     """
     Escape a string to pass as a shell argument
@@ -45,7 +47,9 @@ def render_template_string(string: str, context: dict, shell=False) -> str:
     env.filters['esh'] = escape_shell_arg
     env.filters['basename'] = os.path.basename
     try:
-        templ = env.from_string(string)
+        if string not in COMPILED_TEMPLATES:
+            COMPILED_TEMPLATES[string] = env.from_string(string)
+        templ = COMPILED_TEMPLATES[string]
         return templ.render(context)
     except jinja2.exceptions.TemplateSyntaxError as exc:
         fmsg = f"Jinja syntax had {exc} in `{string}`"
