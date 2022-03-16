@@ -40,17 +40,17 @@ def render_template_string(string: str, context: dict, shell=False) -> str:
     returns:
         The rendered string
     """
-    env = jinja2.Environment(
-        autoescape=False,
-        extensions=([ShellEscapeInjector] if shell else [])
-    )
-    env.filters['esh'] = escape_shell_arg
-    env.filters['basename'] = os.path.basename
+    templ_key = (string, shell)
     try:
-        if string not in COMPILED_TEMPLATES:
-            COMPILED_TEMPLATES[string] = env.from_string(string)
-        templ = COMPILED_TEMPLATES[string]
-        return templ.render(context)
+        if templ_key not in COMPILED_TEMPLATES:
+            env = jinja2.Environment(
+                autoescape=False,
+                extensions=([ShellEscapeInjector] if shell else [])
+            )
+            env.filters['esh'] = escape_shell_arg
+            env.filters['basename'] = os.path.basename
+            COMPILED_TEMPLATES[templ_key] = env.from_string(string)
+        return COMPILED_TEMPLATES[templ_key].render(context)
     except jinja2.exceptions.TemplateSyntaxError as exc:
         fmsg = f"Jinja syntax had {exc} in `{string}`"
         raise app.TemplateRenderFailure(fmsg) from None
