@@ -1,46 +1,10 @@
 """
 Colophon file matching logic
 """
-import re
 import app
-from app.template import render_template_string
 from app.manifest import ManifestEntry
 from app.directory import FileInfo
-
-COMPILED_REGEX = {}
-
-def value_match(value: str, conditions: dict, context: dict = None):
-    """
-    Check if the value meets all passed conditions
-    """
-    if context is None:
-        context = {}
-    matched = True
-    ignorecase = conditions.get('ignorecase', False)
-    def prep(string):
-        """Preprocess string before comparison"""
-        try:
-            string = render_template_string(string, context)
-        except TypeError as exc:
-            fmsg = f"Could not render string \"{string}\": {exc}"
-            app.logger.error(fmsg)
-            raise app.TemplateRenderFailure(fmsg) from None
-        return string.lower() if ignorecase else string
-
-    for ckey, cval in conditions.items():
-        if ckey == 'equals':
-            matched &= prep(value) == prep(cval)
-        elif ckey == 'startswith':
-            matched &= prep(value).startswith(prep(cval))
-        elif ckey == 'endswith':
-            matched &= prep(value).endswith(prep(cval))
-        elif ckey == 'regex':
-            re_key = (cval, re.IGNORECASE if ignorecase else 0)
-            if re_key not in COMPILED_REGEX:
-                COMPILED_REGEX[re_key] = re.compile(*re_key)
-            matched &= COMPILED_REGEX[re_key].search(prep(value)) is not None
-    return matched
-
+from app.helpers import value_match
 
 class FileMatcher:
     """

@@ -8,7 +8,8 @@ import cerberus
 import app
 from app.template import render_template_string
 from app.manifest import ManifestEntry
-from app.filematch import value_match, FileMatcher
+from app.helpers import value_match
+from app.filematch import FileMatcher
 from schemas import suite
 
 class SuiteStage:
