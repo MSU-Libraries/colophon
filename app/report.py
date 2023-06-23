@@ -6,6 +6,7 @@ import csv
 import json
 from collections import defaultdict
 import app
+from app.helpers import ExitCode
 
 class ManifestReport:
     """Report for files left unassociated"""
@@ -81,7 +82,14 @@ class SummaryReport:
             # Exit-code summary per row
             summary['rows'][mfid] = (row := {})
             if (exit_codes := rcode_counts(os.path.join(app.workdir, mfid))):
-                row['exit-codes'] = exit_codes
+                ec_details = {
+                    ec_val: {
+                        "occurrences": ec_cnt,
+                        "code-meaning": str(ExitCode(ec_val)),
+                    }
+                    for ec_val, ec_cnt in exit_codes.items()
+                }
+                row['exit-codes'] = ec_details
 
             # Failure reasons
             if entry.failures:

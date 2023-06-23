@@ -58,3 +58,32 @@ def value_match(value: str, conditions: dict, context: dict = None):
                 vstr, cstr = cstr, vstr
             matched &= vstr.isdigit() and cstr.isdigit() and int(vstr) > int(cstr)
     return matched
+
+class ExitCode:
+    """Helper class for exit codes"""
+    def __init__(self, exit_code: str):
+        self.exit_code = f"{exit_code}" # Ensure str
+
+    def __repr__(self):
+        return f"ExitCode(exit_code={self.exit_code}, describe={','.join(self.describe())})"
+
+    def __str__(self):
+        return f"{','.join(self.describe())}"
+
+    def describe(self):
+        """Return a list of messages describing the meaning of the exit code"""
+        msgs = []
+        if not self.exit_code.isdigit():
+            msgs.append("invalid_or_unset")
+        else:
+            ec_int = int(self.exit_code)
+            msgs.append("failure" if ec_int & 1 else "success")
+            if ec_int & 2:
+                msgs.append("inaccessible_file")
+            if ec_int & 4:
+                msgs.append("bad_argument")
+            if ec_int & 8:
+                msgs.append("warning_logged")
+            if ec_int & 16:
+                msgs.append("skip_manfest_row")
+        return msgs

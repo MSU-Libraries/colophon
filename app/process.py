@@ -5,6 +5,7 @@ import os
 import subprocess
 import pathlib
 import app
+from app.helpers import ExitCode
 
 def exec_command(cmd: str|list, shell: bool=False, redirect_stderr: bool=False):
     """
@@ -53,7 +54,7 @@ def write_output(
     """
     pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
     with open(os.path.join(directory, f"rcode.{rcode}"), 'a', encoding='utf8') as rof:
-        rof.write(f"{rcode}")
+        rof.write(f"{rcode} = {ExitCode(rcode)}\n")
     with open(os.path.join(directory, stdout_file), 'ab') as sof:
         sof.writelines(stdout)
     with open(os.path.join(directory, stderr_file), 'ab') as sef:
