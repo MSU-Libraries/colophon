@@ -53,4 +53,8 @@ def value_match(value: str, conditions: dict, context: dict = None):
                 vstr,
                 re.IGNORECASE if ignorecase else 0
             ) is not None
+        elif ckey in ('greaterthan', 'lessthan'):
+            if ckey == 'lessthan':
+                vstr, cstr = cstr, vstr
+            matched &= vstr.isdigit() and cstr.isdigit() and int(vstr) > int(cstr)
     return matched
