@@ -32,7 +32,7 @@ def exec_command(cmd: str|list, shell: bool=False, redirect_stderr: bool=False):
 
 def write_output(
     directory: str,
-    rcode: int,
+    ecode: int,
     stdout: list,
     stderr: list,
     stdout_file: str="stdout.log",
@@ -40,23 +40,23 @@ def write_output(
 ) -> int:
     """
     Append the given output lines to files within the directory, creating the
-    directory and files if needed. Create/append to an rcode file the given
-    rcode provided.
+    directory and files if needed. Create/append to an ecode file the given
+    ecode provided.
     Args:
         directory: The directory to write into; will be created if doesn't exist
-        rcode: The return code (exit code)
+        ecode: The return code (exit code)
         stdout:
         stderr:
         stdout_file:
         stderr_file:
     Returns:
-        The rcode passed in
+        The ecode passed in
     """
     pathlib.Path(directory).mkdir(parents=True, exist_ok=True)
-    with open(os.path.join(directory, f"rcode.{rcode}"), 'a', encoding='utf8') as rof:
-        rof.write(f"{rcode} = {ExitCode(rcode)}\n")
+    with open(os.path.join(directory, f"ecode.{ecode}"), 'a', encoding='utf8') as rof:
+        rof.write(f"{ecode} = {ExitCode(ecode)}\n")
     with open(os.path.join(directory, stdout_file), 'ab') as sof:
         sof.writelines(stdout)
     with open(os.path.join(directory, stderr_file), 'ab') as sef:
         sef.writelines(stderr)
-    return rcode
+    return ecode

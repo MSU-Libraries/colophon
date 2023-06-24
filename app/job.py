@@ -88,18 +88,18 @@ class ColophonJob:
             entry: The manifest entry to run the scripts with
         """
         for ready_script, stage_suffix in stage.script(entry):
-            rcode = app.write_output(
+            ecode = app.write_output(
                 f"{stage_basedir}{stage_suffix}",
                 *app.exec_command(ready_script, shell=True)
             )
-            if rcode % 2 == 1:
-                fmsg = f"Script failure (stage={stage.name}{stage_suffix}, exit={rcode}): {ready_script}"
+            if ecode % 2 == 1:
+                fmsg = f"Script failure (stage={stage.name}{stage_suffix}, exit={ecode}): {ready_script}"
                 entry.failures.append(fmsg)
                 app.logger.info(fmsg)
-            if rcode & 16 == 16:
+            if ecode & 16 == 16:
                 fmsg = (
                     "Script set entry as filtered "
-                    f"(stage={stage}{stage_suffix}, exit={rcode}): {ready_script}"
+                    f"(stage={stage}{stage_suffix}, exit={ecode}): {ready_script}"
                 )
                 entry.filtered(fmsg)
                 app.logger.info(fmsg)

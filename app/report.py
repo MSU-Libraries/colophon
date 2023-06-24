@@ -41,18 +41,18 @@ class IgnoredReport:
             json.dump(ignored, ignored_file, indent=2)
             ignored_file.write('\n')
 
-def rcode_counts(search_dir: str):
+def ecode_counts(search_dir: str):
     """
-    Given a directory, find all files in the form "rcode.N"
+    Given a directory, find all files in the form "ecode.N"
     where N is a return code. Return a dict of key N to the
     count of matching files grouped by N.
     """
-    rcodes = defaultdict(int)
+    ecodes = defaultdict(int)
     for _, _, files in os.walk(search_dir):
         for fname in files:
-            if fname.startswith("rcode."):
-                rcodes[fname.removeprefix("rcode.")] += 1
-    return dict(rcodes)
+            if fname.startswith("ecode."):
+                ecodes[fname.removeprefix("ecode.")] += 1
+    return dict(ecodes)
 
 class SummaryReport:
     """Summary report of overall run"""
@@ -81,7 +81,7 @@ class SummaryReport:
 
             # Exit-code summary per row
             summary['rows'][mfid] = (row := {})
-            if (exit_codes := rcode_counts(os.path.join(app.workdir, mfid))):
+            if (exit_codes := ecode_counts(os.path.join(app.workdir, mfid))):
                 ec_details = {
                     ec_val: {
                         "occurrences": ec_cnt,
@@ -136,7 +136,7 @@ class SummaryReport:
         raises:
             ColophonException if generate() hasn't been called prior to exit_code()
         """
-        rcode = 0
+        ecode = 0
         if self.failed is None:
             raise app.ColophonException(
                 "Could not determine exit code: Must call generate() before exit_code()"
@@ -145,5 +145,5 @@ class SummaryReport:
             self.failed or
             (strict and (self.skipped or self.unassociated))
         ):
-            rcode = 2
-        return rcode
+            ecode = 2
+        return ecode
