@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<style>
+body {
+    display: inline-grid;
+}
+table {
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    font-family: monospace;
+}
+table thead tr {
+    background-color: #00aa99;
+    color: #ffffff;
+    text-align: left;
+}
+table th,
+table td {
+    padding: 0.3rem 0.5rem;
+    width: 20rem;
+}
+table div {
+    height: 1.3rem;
+    max-width: 24rem;
+    white-space: nowrap;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+table tbody tr {
+    border-bottom: 0.1px solid #c9c9c9;
+}
+table tbody tr:nth-of-type(even) {
+    background-color: #f4f4f4;
+}
+</style>
+<head>
+    <title>Colophon Results Overview</title>
+    <link rel="stylesheet" href="./.colophon/default.min.css">
+    <script src="./.colophon/highlight.min.js"></script>
+    <script>hljs.highlightAll();</script>
+</head>
+<body>
+<header>
+    <h1>Colophon Results Overview</h1>
+    <p><i>
+        Completed({{ now }})<br />
+        Source{{ app.sourcedir }}<br />
+        {{ app.manifest }}<br />
+        {{ app.suite }}<br />
+    </i></p>
+</header>
+<nav>
+    <ul>
+        <li><a href="#summary">Summary</a></li>
+        <li><a href="#results">Results</a></li>
+        <li><a href="#manifest">Manifest</a></li>
+        <li><a href="#logs">Main Logs</a></li>
+        <li><a href="#files">Stage Files</a></li>
+    </ul>
+</nav>
+<main>
+    <a name="summary"></a>
+    <h2>Summary</h2>
+    <pre><code class="language-json">{{ summary }}</code></pre>
+    <a name="results"></a>
+    <h2>Results</h2>
+    <pre><code class="language-json">{{ results }}</code></pre>
+    <a name="manifest"></a>
+    <h2>Manifest</h2>
+    <table>
+    {% for row in manifest %}
+    {% if loop.index == 1 %}
+    <thead><tr>
+        {%- for column in row.headers() -%}
+        <th>{{ column }}</th>
+        {%- endfor -%}
+    </tr></thead>
+    <tbody>
+    {% endif %}
+        <tr>
+        {%- for column in row.values() -%}
+        <td><div>{{ column }}</div></td>
+        {%- endfor -%}
+        </tr>
+    {% endfor %}
+        </tbody>
+    </table>
+    <a name="logs"></a>
+    <h2>Main Logs</h2>
+    <pre><code class="language-text">{% for line in logs %}{{ line }}{% endfor %}</code></pre>
+    <a name="files"></a>
+    <h2>Stage Files</h2>
+    <pre>
+    {% for file in files %}<a href="{{ file }}">{{ file }}</a>
+    {% endfor %}</pre>
+</main>
+</body>
+</html>

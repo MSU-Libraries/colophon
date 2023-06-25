@@ -35,8 +35,8 @@ def write_output(
     ecode: int,
     stdout: list,
     stderr: list,
-    stdout_file: str="stdout.log",
-    stderr_file: str="stderr.log"
+    stdout_file: str="stdout.txt",
+    stderr_file: str="stderr.txt"
 ) -> int:
     """
     Append the given output lines to files within the directory, creating the

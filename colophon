@@ -82,6 +82,7 @@ def main(manifest, suite, sourcedir, workdir, retry, ignore_missing, strict, ver
     job.label_files(ignore_missing)
     job.run_stages()
     exit_code = job.generate_reports(strict, ignore_missing)
+    job.create_overview()
     print(job.zip_output())
     return exit_code
 

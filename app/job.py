@@ -4,6 +4,7 @@ Colophon job running functionality
 import os
 import tempfile
 import zipfile
+from pathlib import Path
 import app
 from app.manifest import ManifestEntry
 from app.suite import SuiteStage
@@ -126,6 +127,13 @@ class ColophonJob:
         summary.generate()
         return summary.exit_code(strict)
 
+    @staticmethod
+    def create_overview():
+        """Create the overview HTML page"""
+        app.logger.debug("Generating overview HTML page.")
+        Path(os.path.join(app.workdir, '.colophon')).mkdir(exist_ok=True)
+        overview = app.report.OverviewPage()
+        overview.generate()
 
     @staticmethod
     def zip_output():

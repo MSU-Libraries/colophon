@@ -4,9 +4,12 @@ Colophon reports and other output files
 import os
 import csv
 import json
+import shutil
+from datetime import datetime
 from collections import defaultdict
 import app
 from app.helpers import ExitCode
+from app.template import render_template_string
 
 class ManifestReport:
     """Report for files left unassociated"""
@@ -147,3 +150,63 @@ class SummaryReport:
         ):
             ecode = 2
         return ecode
+
+class OverviewPage:
+    """Overview of all reports, data, and files"""
+    @staticmethod
+    def generate(
+        savedir: str=None,
+        filename: str="overview.html",
+        template: str="overview.html.j2"
+    ):
+        """Create overview and save in workdir"""
+        savedir = savedir if savedir else app.workdir
+        filename = filename if filename else app.workdir
+        template = template if template else app.workdir
+
+        with open(os.path.join(app.workdir, 'summary.json'), 'r', encoding='utf8') as sfh:
+            sumdat = json.load(sfh)
+
+        with open(os.path.join(app.workdir, 'results.json'), 'r', encoding='utf8') as rfh:
+            resdat = json.load(rfh)
+
+        with open(os.path.join(app.workdir, 'colophon.log'), 'r', encoding='utf8') as lfh:
+            logdat = lfh.readlines()
+
+        fildat = []
+        for root, dirs, files in os.walk(app.workdir):
+            if root == app.workdir:
+                continue
+            for file in files:
+                fildat.append(os.path.join(root, file).removeprefix(f"{app.workdir}/"))
+        fildat.sort()
+
+        # Create context
+        context = {
+            "app": app,
+            "now": datetime.now().replace(microsecond=0).isoformat(),
+            "summary": json.dumps(sumdat, indent=2),
+            "results": json.dumps(resdat, indent=2),
+            "manifest": app.manifest,
+            "files": fildat,
+            "logs": logdat,
+        }
+
+        # Render template to output file
+        overview_path = os.path.join(app.workdir, filename)
+        template_path = os.path.join(app.install_path, 'templates', template)
+        with (
+            open(overview_path, 'w', encoding='utf8') as overview_file,
+            open(template_path, 'r', encoding='utf8') as template_file
+        ):
+            overview_file.write(render_template_string(template_file.read(), context))
+
+        # Add dependencies to .colophon dir
+        shutil.copy(
+            os.path.join(app.install_path, 'ext/highlightjs/highlight.min.js'),
+            os.path.join(app.workdir, '.colophon/highlight.min.js')
+        )
+        shutil.copy(
+            os.path.join(app.install_path, 'ext/highlightjs/default.min.css'),
+            os.path.join(app.workdir, '.colophon/default.min.css')
+        )
