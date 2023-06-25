@@ -5,3 +5,6 @@
 .coverage
 __pycache__
 example_*
+.*.sw[po]
+*~
+.ack
