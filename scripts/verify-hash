@@ -2,9 +2,10 @@
 
 # Dependencies: jq, moreutils
 
+SCRIPT_NAME=$(basename -- "$0")
 runhelp() {
     echo ""
-    echo "Usage: verify-hash [FLAGS]"
+    echo "Usage: $SCRIPT_NAME [FLAGS]"
     echo ""
     echo "  Verify a file contents matches a given hash"
     echo ""
@@ -35,11 +36,10 @@ fi
 ##  $2 -> Value to find
 ## Returns 0 if an element matches the value to find
 array_contains() {
-    local ARRNAME=$1[@]
-    local HAYSTACK=( ${!ARRNAME} )
+    local ARRNAME="$1[@]"
     local NEEDLE="$2"
-    for VAL in "${HAYSTACK[@]}"; do
-        if [[ $NEEDLE == $VAL ]]; then
+    for HAY in "${!ARRNAME}"; do
+        if [[ "$NEEDLE" == "$HAY" ]]; then
             return 0
         fi
     done
@@ -189,10 +189,10 @@ main() {
     # Update JSON if provided
     if [[ -n "${ARGS[JSON]}" ]]; then
         if [[ ! -e "${ARGS[JSON]}" ]]; then
-            verbose "Creating new JSON file ${ARGS[JSON]} with hash check results."
+            verbose "Creating new JSON file ${ARGS[JSON]} with $SCRIPT_NAME results."
             echo "{}" > "${ARGS[JSON]}" || die 5 "Could not write to JSON file: ${ARGS[JSON]}"
         else
-            verbose "Updating JSON file ${ARGS[JSON]} with hash check results."
+            verbose "Updating JSON file ${ARGS[JSON]} with $SCRIPT_NAME results."
         fi
         MATCHED=$(( 1- HASH_MISMATCH ))
         jq ".\"verify-hash\" |= .+ [{ \
