@@ -1,0 +1,212 @@
+#!/bin/bash
+
+# Dependencies: jq, imagemagick
+
+SCRIPT_NAME=$(basename -- "$0")
+runhelp() {
+    echo ""
+    echo "Usage: $SCRIPT_NAME [FLAGS]"
+    echo ""
+    echo "  Verify properties of an image"
+    echo ""
+    echo "FLAGS:"
+    echo "  -c|--check-file FILE"
+    echo "      The file to validate"
+    echo "  -i|--index IDX (e.g. page/layer number; default: 0)"
+    echo "      The index to verify for multi-image formats"
+    echo "  -d|--dimensions DIMS  (e.g. 1920x1080, 5460x3776)"
+    echo "      The dimensions of the image expected. **"
+    echo "  -x|--compression CTYPE (e.g. jpeg, none)"
+    echo "      Expect the following compression type. **"
+    echo "  -J|--json JSON"
+    echo "      Write results to the file JSON."
+    echo "  -v|--verbose"
+    echo "      Display verbose output."
+    echo "  **  Flag can be set multiple times. If set more than once, any of the"
+    echo "      specified flags' values will be permitted."
+    echo ""
+}
+
+if [[ -z "$1" || $1 == "help" ]]; then
+    runhelp
+    exit 1
+fi
+
+###############################
+## Check if array contains a given value
+##  $1 -> Name of array to search
+##  $2 -> Value to find
+## Returns 0 if an element matches the value to find
+array_contains() {
+    local ARRNAME="$1[@]"
+    local NEEDLE="$2"
+    for HAY in "${!ARRNAME}"; do
+        if [[ "$NEEDLE" == "$HAY" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Set defaults
+default_args() {
+    declare -g CHECK_FILE=
+    declare -g IDX=0
+    declare -g -a DIMENS=()
+    declare -g -a COMPRS=()
+    declare -g JSON=
+    declare -g VERBOSE=0
+}
+
+# Parse command arguments
+parse_args() {
+    # Parse flag arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+        -c|--check-file)
+            CHECK_FILE="$2"
+            if [[ ! -f "${CHECK_FILE}" ]]; then
+                die 3 "File to check does not exist: $2"
+            fi
+            shift; shift ;;
+        -i|--index)
+            IDX="$2"
+            shift; shift ;;
+        -d|--dimensions)
+            if ! [[ "$2" =~ ^[1-9][0-9]*+x[1-9][0-9]*$ ]]; then
+                die 5 "Invalid --dimensions format. Must be WIDTHxHEIGHT using positive integers. Invalid value: {$2}"
+            fi
+            DIMENS+=("${2,,}")
+            shift; shift ;;
+        -x|--compression)
+            if [[ -z "$2" ]]; then
+                die 5 "Empty --compression value not allowed. Set to 'none' to validate no compression set."
+            fi
+            COMPRS+=("${2,,}")
+            shift; shift ;;
+        -J|--json)
+            JSON="$2"
+            shift; shift ;;
+        -v|--verbose)
+            VERBOSE=1
+            shift ;;
+        -h|--help)
+            runhelp
+            exit 1
+            ;;
+        *)
+            die 5 "Error: Unknown flag: $1"
+        esac
+    done
+
+    required_flags
+
+    # Check file and hash algo provided, but no hash file; auto check for hash file
+    if [[ -z "${IDX}" ]]; then
+        verbose "No index provided. Assuming: ${IDX}"
+    elif ! [[ "$IDX" =~ ^[0-9]+$ ]]; then
+        die 5 "Value for --index must be a non-negative integer. Invalid value: $IDX"
+    fi
+}
+
+verbose() {
+    MSG="$1"
+    if [[ "${VERBOSE}" -eq 1 ]]; then
+        echo "${MSG}"
+    fi
+}
+
+stderr() {
+    1>&2 echo "$1"
+}
+
+die() {
+    stderr "$2"
+    exit $1
+}
+
+required_flags() {
+    if [[ -z "${CHECK_FILE}" ]]; then
+        die 5 "Failure: Missing required flag --check-file"
+    fi
+    if [[ "${#DIMENS[@]}" -eq 0 && "${#COMPRS[@]}" -eq 0 ]]; then
+        die 5 "Failure: Nothing set to be validated. See --help for options."
+    fi
+}
+
+bool() {
+    if [[ "$1" -eq 1 || "$1" == "" ]]; then
+        echo "false"
+    else
+        echo "true"
+    fi
+}
+
+main() {
+    IMG_VERIFIED=0
+    IDENTIFY_FILE="{$CHECK_FILE}[$IDX]"
+
+    # Verify dimensions
+    if [[ "${#DIMENS[@]}" -gt 0 ]]; then
+        verbose "Verifying dimensions are within allowed values: ${DIMENS[*]}"
+        IDENTIFY_DIMEN=$( identify -format "%Wx%H" "$IDENTIFY_FILE" )
+        verbose "Detected file dimensions: $IDENTIFY_DIMEN"
+        DIMEN_VERIFIED=1
+        if array_contains DIMENS "$IDENTIFY_DIMEN"; then
+            DIMEN_VERIFIED=0
+        fi
+        IMG_VERIFIED=$(( IMG_VERIFIED | DIMEN_VERIFIED ))
+    fi
+
+    # Verify compression
+    if [[ "${#COMPRS[@]}" -gt 0 ]]; then
+        verbose "Verifying compression is one of allowed values: ${COMPRS[*]}"
+        IDENTIFY_COMPR=$( identify -format "%C" "$IDENTIFY_FILE" )
+        IDENTIFY_COMPR="${IDENTIFY_COMPR,,}"
+        verbose "Detected file compression: $IDENTIFY_COMPR"
+        COMPR_VERIFIED=1
+        if array_contains COMPRS "$IDENTIFY_COMPR"; then
+            COMPR_VERIFIED=0
+        fi
+        IMG_VERIFIED=$(( IMG_VERIFIED | COMPR_VERIFIED ))
+    fi
+
+    # Update JSON if provided
+    if [[ -n "${JSON}" ]]; then
+        if [[ ! -e "${JSON}" ]]; then
+            verbose "Creating new JSON file ${JSON} with $SCRIPT_NAME results."
+            echo "{}" > "${JSON}" || die 5 "Could not write to JSON file: ${JSON}"
+        else
+            verbose "Updating JSON file ${JSON} with $SCRIPT_NAME results."
+        fi
+        read -r -d '' JQ_ARG <<- EOF
+			."validate-image" |= .+ [{
+				image: "${CHECK_FILE}",
+				index: "${IDX}",
+				verified: $( bool $IMG_VERIFIED ),
+				dimensions: {
+					allowed: "${DIMENS[*]}",
+					found: "${IDENTIFY_DIMEN}",
+				},
+				compression: {
+					allowed: "${COMPRS[*]}",
+					found: "${IDENTIFY_COMPR}",
+				},
+			}]
+			EOF
+        jq "$JQ_ARG" "$JSON" | sponge "$JSON"
+    fi
+
+    # Exit success only if a check occured and there was no mismatch
+    if [[ $IMG_VERIFIED -eq 0 ]]; then
+        verbose "Image verified okay."
+        exit 0
+    fi
+    verbose "Image verification failed!"
+    exit 1
+}
+
+# Parse and start running
+default_args
+parse_args "$@"
+main
