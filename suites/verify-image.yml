@@ -1,0 +1,39 @@
+---
+manifest:
+  # String that can be used to identify row (used in output and logs)
+  id: "{{ basename }}"
+  # Only run on rows in the manifest matching these parameters
+  filter:
+    # equals, startswith, endswith, regex, ignorecase, greaterthan, lessthan
+    - value: mediatype
+      equals: image
+      ignorecase: true
+  # For each manifest row, match the following files
+  files:
+    - label: pres
+      # value: "{{ file.name }}"    # Default for files section
+      startswith: "{{ basename }}"
+      endswith: ".tif"
+    - label: access
+      startswith: "{{ basename }}"
+      endswith: ".jpg"
+    - label: pres_hash
+      startswith: "{{ basename }}"
+      endswith: ".tif.md5"
+    - label: access_hash
+      startswith: "{{ basename }}"
+      endswith: ".jpg.md5"
+
+stages:
+  # Run access hash check
+  stage1.1:
+    script: "scripts/verify-hash -c {{ access }} -f {{ access_hash }} -v -J {{ results_path }}"
+  # Run preservation hash check
+  stage1.2:
+    script: "scripts/verify-hash -c {{ pres }} -f {{ pres_hash }} -v -J {{ results_path }}"
+  # Access file image validation (6"x9" at 300DPI or 600DPI)
+  stage1.3:
+    script: "scripts/validate-image -c {{ pres }} -d 1800x2700 -d 3600x5400 -x JPEG -v -J {{ results_path }}"
+  # Preservation file image validation (6"x9" at 600DPI)
+  stage1.4:
+    script: "scripts/validate-image -c {{ asset }} d 3600x5400 -x None -v -J {{ results_path }}"
