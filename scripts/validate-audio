@@ -1,0 +1,239 @@
+#!/bin/bash
+
+# Dependencies: jq, mediainfo
+
+SCRIPT_NAME=$(basename -- "$0")
+runhelp() {
+    echo ""
+    echo "Usage: $SCRIPT_NAME [FLAGS]"
+    echo ""
+    echo "  Verify properties of an audio stream"
+    echo ""
+    echo "FLAGS:"
+    echo "  -c|--check-file FILE"
+    echo "      The file to validate."
+    #TODO not implemented
+    #echo "  -i|--index IDX (default: 0)"
+    #echo "      The audio stream to pull from the file, where 0 is the first stream."
+    echo "  -s|--samplingrate RATE  (e.g. 44100, 48000)"
+    echo "      The sampling rate of the audio. **"
+    echo "  -m|--bitratemode MODE (e.g. CBR, VBR)"
+    echo "      The mode of the audio data. **"
+    echo "  -b|--bitdepth DEPTH (e.g. 16, 24, 32)"
+    echo "      Expected bit depth of each audio channel. **"
+    echo "  -J|--json JSON"
+    echo "      Write results to the file JSON."
+    echo "  -v|--verbose"
+    echo "      Display verbose output."
+    echo "  **  Flag can be set multiple times. If set more than once, any of the"
+    echo "      specified flags' values will be permitted."
+    echo ""
+}
+
+if [[ -z "$1" || $1 == "help" ]]; then
+    runhelp
+    exit 1
+fi
+
+###############################
+## Check if array contains a given value
+##  $1 -> Name of array to search
+##  $2 -> Value to find
+## Returns 0 if an element matches the value to find
+array_contains() {
+    local ARRNAME="$1[@]"
+    local NEEDLE="$2"
+    for HAY in "${!ARRNAME}"; do
+        if [[ "$NEEDLE" == "$HAY" ]]; then
+            return 0
+        fi
+    done
+    return 1
+}
+
+# Set defaults
+default_args() {
+    declare -g CHECK_FILE=
+    declare -g IDX=0
+    declare -g -a SAMPLES=()
+    declare -g -a BDEPTHS=()
+    declare -g -a BRMODES=()
+    declare -g JSON=
+    declare -g VERBOSE=0
+}
+
+# Parse command arguments
+parse_args() {
+    # Parse flag arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+        -c|--check-file)
+            CHECK_FILE="$2"
+            if [[ ! -f "${CHECK_FILE}" ]]; then
+                die 3 "File to check does not exist: $2"
+            fi
+            shift; shift ;;
+        -i|--index)
+            IDX="$2"
+            shift; shift ;;
+        -s|--samplingrate)
+            if ! [[ "$2" =~ ^[1-9][0-9]+$ ]]; then
+                die 5 "Invalid --samplingrate format. Must be rate in Hertz using only positive integers. Invalid value: $2"
+            fi
+            SAMPLES+=("${2}")
+            shift; shift ;;
+        -b|--bitdepth)
+            if ! [[ "$2" =~ ^[1-9][0-9]*$ ]]; then
+                die 5 "Invalid --bitdepth value. Must be a positive integer. Invalid value: $2"
+            fi
+            BDEPTHS+=("${2}")
+            shift; shift ;;
+        -m|--bitratemode)
+            BRMODE="${2,,}"
+            if ! [[ "$BRMODE" =~ ^[acv]br$ ]]; then
+                die 5 "Invalid --bitratemode value. Must be either ABR, CBR, or VBR. Invalid value: $2"
+            fi
+            BRMODES+=("${2}")
+            shift; shift ;;
+        -J|--json)
+            JSON="$2"
+            shift; shift ;;
+        -v|--verbose)
+            VERBOSE=1
+            shift ;;
+        -h|--help)
+            runhelp
+            exit 1
+            ;;
+        *)
+            die 5 "Error: Unknown flag: $1"
+        esac
+    done
+
+    required_flags
+
+    # Validate audio stream index selected
+    #TODO not implemented
+    #if [[ -z "${IDX}" ]]; then
+    #    verbose "No index provided. Assuming: ${IDX}"
+    #elif ! [[ "$IDX" =~ ^[0-9]+$ ]]; then
+    #    die 5 "Value for --index must be a non-negative integer. Invalid value: $IDX"
+    #fi
+}
+
+verbose() {
+    MSG="$1"
+    if [[ "${VERBOSE}" -eq 1 ]]; then
+        echo "${MSG}"
+    fi
+}
+
+stderr() {
+    1>&2 echo "$1"
+}
+
+die() {
+    stderr "$2"
+    exit $1
+}
+
+required_flags() {
+    if [[ -z "${CHECK_FILE}" ]]; then
+        die 5 "Failure: Missing required flag --check-file"
+    fi
+    if [[ "${#SAMPLES[@]}" -eq 0 && "${#BDEPTHS[@]}" -eq 0 && "${#BDRATES[@]}" -eq 0 ]]; then
+        die 5 "Failure: Nothing set to be validated. See --help for options."
+    fi
+}
+
+bool() {
+    if [[ "$1" -eq 1 || "$1" == "" ]]; then
+        echo "false"
+    else
+        echo "true"
+    fi
+}
+
+main() {
+    VERIFIED=0
+    MEDIAINFO=$( mediainfo -f --Output=JSON "$CHECK_FILE" )
+
+    # Verify dimensions
+    if [[ "${#SAMPLES[@]}" -gt 0 ]]; then
+        verbose "Verifying sampling rate is within allowed values: ${SAMPLES[*]}"
+        SAMPLE=$( echo "$MEDIAINFO" | jq -r '.media.track[] | select(."@type" == "Audio") | .SamplingRate' )
+        verbose "Detected sampling rate: $SAMPLE"
+        SAMPLE_VERIFIED=1
+        if array_contains SAMPLES "$SAMPLE"; then
+            SAMPLE_VERIFIED=0
+        fi
+        VERIFIED=$(( VERIFIED | SAMPLE_VERIFIED ))
+    fi
+
+    # Verify bit depth
+    if [[ "${#BDEPTHS[@]}" -gt 0 ]]; then
+        verbose "Verifying bit depth is one of allowed values: ${BDEPTHS[*]}"
+        BDEPTH=$( echo "$MEDIAINFO" | jq -r '.media.track[] | select(."@type" == "Audio") | .BitDepth' )
+        verbose "Detected bit depth: $BDEPTH"
+        BDEPTH_VERIFIED=1
+        if array_contains BDEPTHS "$BDEPTH"; then
+            BDEPTH_VERIFIED=0
+        fi
+        VERIFIED=$(( VERIFIED | BDEPTH_VERIFIED ))
+    fi
+
+    # Verify bitrate mode
+    if [[ "${#BRMODES[@]}" -gt 0 ]]; then
+        verbose "Verifying bitrate mode is one of allowed values: ${BRMODES[*]}"
+        BRMODE=$( echo "$MEDIAINFO" | jq -r '.media.track[] | select(."@type" == "Audio") | .BitRate_Mode' )
+        verbose "Detected bit depth: $BRMODE"
+        BRMODE_VERIFIED=1
+        if array_contains BRMODES "$BRMODE"; then
+            BRMODE_VERIFIED=0
+        fi
+        VERIFIED=$(( VERIFIED | BRMODE_VERIFIED ))
+    fi
+
+    # Update JSON if provided
+    if [[ -n "${JSON}" ]]; then
+        if [[ ! -e "${JSON}" ]]; then
+            verbose "Creating new JSON file ${JSON} with $SCRIPT_NAME results."
+            echo "{}" > "${JSON}" || die 5 "Could not write to JSON file: ${JSON}"
+        else
+            verbose "Updating JSON file ${JSON} with $SCRIPT_NAME results."
+        fi
+        read -r -d '' JQ_ARG <<- EOF
+			."validate-video" |= .+ [{
+				image: "${CHECK_FILE}",
+				index: "${IDX}",
+				verified: $( bool $VERIFIED ),
+				samplingrate: {
+					allowed: "${SAMPLES[*]}",
+					found: "${SAMPLE}",
+				},
+				bitdepth: {
+					allowed: "${BDEPTHS[*]}",
+					found: "${BDEPTH}",
+				},
+				bitratemode: {
+					allowed: "${BRMODES[*]}",
+					found: "${BRMODE}",
+				},
+			}]
+			EOF
+        jq "$JQ_ARG" "$JSON" | sponge "$JSON"
+    fi
+
+    # Exit success only if a check occured and there was no mismatch
+    if [[ $VERIFIED -eq 0 ]]; then
+        verbose "Audio verified okay."
+        exit 0
+    fi
+    verbose "Audio verification failed!"
+    exit 1
+}
+
+# Parse and start running
+default_args
+parse_args "$@"
+main
