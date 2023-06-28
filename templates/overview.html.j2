@@ -35,10 +35,18 @@ table tbody tr:nth-of-type(even) {
 }
 </style>
 <head>
-    <title>Colophon Results Overview</title>
-    <link rel="stylesheet" href="./.colophon/default.min.css">
-    <script src="./.colophon/highlight.min.js"></script>
-    <script>hljs.highlightAll();</script>
+<title>Colophon Results Overview</title>
+{% for css in css_data %}
+<style>
+{{ css | safe }}
+</style>
+{% endfor %}
+{% for js in js_data %}
+<script type="text/javascript">
+{{ js | safe }}
+</script>
+{% endfor %}
+<script>hljs.highlightAll();</script>
 </head>
 <body>
 <header>

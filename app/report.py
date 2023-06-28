@@ -181,6 +181,19 @@ class OverviewPage:
                 fildat.append(os.path.join(root, file).removeprefix(f"{app.workdir}/"))
         fildat.sort()
 
+        # Read in external files for embedding
+        js_data, css_data = [], []
+        with (
+            open(
+                os.path.join(app.install_path, 'ext/highlightjs/highlight.min.js'),
+                'r', encoding='utf8') as hljs_js,
+            open(
+                os.path.join(app.install_path, 'ext/highlightjs/default.min.css'),
+                'r', encoding='utf8') as hljs_css
+        ):
+            js_data.append(hljs_js.read())
+            css_data.append(hljs_css.read())
+
         # Create context
         context = {
             "app": app,
@@ -190,6 +203,8 @@ class OverviewPage:
             "manifest": app.manifest,
             "files": fildat,
             "logs": logdat,
+            "js_data": js_data,
+            "css_data": css_data,
         }
 
         # Render template to output file
@@ -200,13 +215,3 @@ class OverviewPage:
             open(template_path, 'r', encoding='utf8') as template_file
         ):
             overview_file.write(render_template_string(template_file.read(), context))
-
-        # Add dependencies to .colophon dir
-        shutil.copy(
-            os.path.join(app.install_path, 'ext/highlightjs/highlight.min.js'),
-            os.path.join(app.workdir, '.colophon/highlight.min.js')
-        )
-        shutil.copy(
-            os.path.join(app.install_path, 'ext/highlightjs/default.min.css'),
-            os.path.join(app.workdir, '.colophon/default.min.css')
-        )
