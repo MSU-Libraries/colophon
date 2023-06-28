@@ -11,9 +11,9 @@ runhelp() {
     echo ""
     echo "FLAGS:"
     echo "  -c|--check-file FILE"
-    echo "      The file to validate"
+    echo "      The file to validate."
     echo "  -i|--index IDX (e.g. page/layer number; default: 0)"
-    echo "      The index to verify for multi-image formats"
+    echo "      The index to verify for multi-image formats."
     echo "  -d|--dimensions DIMS  (e.g. 1920x1080, 5460x3776)"
     echo "      The dimensions of the image expected. **"
     echo "  -x|--compression CTYPE (e.g. jpeg, none)"
@@ -74,7 +74,7 @@ parse_args() {
             shift; shift ;;
         -d|--dimensions)
             if ! [[ "$2" =~ ^[1-9][0-9]*+x[1-9][0-9]*$ ]]; then
-                die 5 "Invalid --dimensions format. Must be WIDTHxHEIGHT using positive integers. Invalid value: {$2}"
+                die 5 "Invalid --dimensions format. Must be WIDTHxHEIGHT using positive integers. Invalid value: $2"
             fi
             DIMENS+=("${2,,}")
             shift; shift ;;
@@ -143,7 +143,7 @@ bool() {
 }
 
 main() {
-    IMG_VERIFIED=0
+    VERIFIED=0
     IDENTIFY_FILE="{$CHECK_FILE}[$IDX]"
 
     # Verify dimensions
@@ -155,7 +155,7 @@ main() {
         if array_contains DIMENS "$IDENTIFY_DIMEN"; then
             DIMEN_VERIFIED=0
         fi
-        IMG_VERIFIED=$(( IMG_VERIFIED | DIMEN_VERIFIED ))
+        VERIFIED=$(( VERIFIED | DIMEN_VERIFIED ))
     fi
 
     # Verify compression
@@ -168,7 +168,7 @@ main() {
         if array_contains COMPRS "$IDENTIFY_COMPR"; then
             COMPR_VERIFIED=0
         fi
-        IMG_VERIFIED=$(( IMG_VERIFIED | COMPR_VERIFIED ))
+        VERIFIED=$(( VERIFIED | COMPR_VERIFIED ))
     fi
 
     # Update JSON if provided
@@ -183,7 +183,7 @@ main() {
 			."validate-image" |= .+ [{
 				image: "${CHECK_FILE}",
 				index: "${IDX}",
-				verified: $( bool $IMG_VERIFIED ),
+				verified: $( bool $VERIFIED ),
 				dimensions: {
 					allowed: "${DIMENS[*]}",
 					found: "${IDENTIFY_DIMEN}",
@@ -198,7 +198,7 @@ main() {
     fi
 
     # Exit success only if a check occured and there was no mismatch
-    if [[ $IMG_VERIFIED -eq 0 ]]; then
+    if [[ $VERIFIED -eq 0 ]]; then
         verbose "Image verified okay."
         exit 0
     fi
