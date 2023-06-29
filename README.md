@@ -1,6 +1,10 @@
 # Colophon: File Quality Control Validator
 
-Colophon is a tool to ...
+Colophon is a tool to take a media object manifest, find related
+files using a flexible matching system, and then run any
+number of scripts to validate the files founds. The output is
+then bundled into a zip file, including HTML report summary,
+JSON data details, and full output of all scripts run.
 
 ## Table of Contents
 * [Installing](#installing)
@@ -23,8 +27,42 @@ Colophon is a tool to ...
   - [Results JSON File as Input Argument](#results-json-file-as-input-argument)
 
 ## Installing
-TODO dependencies
-TODO
+Colophon is written primarily in Python, but makes use of scripts
+to run validation tests. These scripts can be written in any language,
+and you can add your own quite easily!
+
+Create your virutal environment
+```sh
+# Using virtualenv here, but you can use whatever you want
+virtualenv -p python3 env
+```
+
+Install Python dependences
+```sh
+# Activate your virtual environment
+. env/bin/activate
+# Install dependencies defined in the requirements.txt file
+pip3 install -r requirements.txt
+```
+
+Running colophon
+```sh
+# If you've activated your environment
+./colophon -h
+# Or call via env directly
+./env/bin/python3 colophon -h
+```
+
+### Script Dependencies
+Depending on which scripts you use, some of all of the following
+dependendies will be needed. Here are the commands to install
+them on Ubuntu, but you should be able to easily find these
+packages on most Linux distributions.
+
+Install dependencies on Ubuntu (`bash` already present)
+```sh
+apt install -y jq imagemagick mediainfo
+```
 
 ## What is Needed to Run
 Before you can run Colophon, you will need the following:
@@ -32,6 +70,11 @@ Before you can run Colophon, you will need the following:
 * A folder with data to be checked (the files **source directory**)
 * A CSV listing records that need to be verified (the **manifest**)
 * A configuration file of what tests to run (the **suite** of tests)
+
+## Other Terms to Know
+
+* __Error__: A script was unable to complete. This is likely due to due incorrect input or missing dependencies.
+* __Failure__: A script ran to completion, but the validation did not succeed on the given file using the given parameters.
 
 ## How Colophon Works
 Colophon starts with the manifest file. This is an arbitrary CSV file
@@ -57,10 +100,12 @@ creating a the suite file before running your verifications.
 ## Running Colophon
 Assuming you have the three required components ready (source directory,
 manifest file, suite file), then running `colophon` is quite simple.
-```
+```sh
 ./colophon -m example_manifest.csv -s suites/verify-video.yml -d example_files/ -v
 ```
+
 Where:
+
 * `example_manifest.csv` is the CSV file containing the manifest
 * `suites/verify-video.yml` is a YAML file defining the suite to run against the manifest
 * `example_files/` is a directory where files associated with the manifest are located
@@ -73,16 +118,18 @@ A full list of command options is also avilable by using the `-h` or `--help` fl
 * `-d, --dir DIR`           The source directory in which to find files defined by the suite and manifest  [required]
 * `-w, --workdir WORKDIR`   A directory where to store temp files and results
 * `-r, --retry FAILED`      Re-run failed tests specified in provided JSON file from previous run
+* `-i, --ignore-missing`    Ignore manifest entries that have no files matched
 * `-t, --strict`            Exit code 0 only with no manifest entries skipped and no unassociated files
 * `-v, --verbose`           Provide details output while running
 * `-q, --quiet`             Suppress output while running
 
 ### Colophon Exit Codes
 The primary `colophon` script has three possible exit codes.
+
 * `0` There were no failures when running stages on manifest entries.
 * `1` An error occured. See output/logs for detals.
 * `2` While running stages, one or more failures occurred.
-* `2` (Strict mode) A manifest entry was skipped or there were unassociated files.
+* `2` (When using strict mode) A manifest entry was skipped or there were unassociated files.
 
 ### Colophon Output
 If `colophon` exits without an error (exit code `0` or `2`), the only output to
@@ -90,7 +137,10 @@ If `colophon` exits without an error (exit code `0` or `2`), the only output to
 a normal run will be to **stderr**.
 
 Should `colophon` exit with an error, no results zip file will be generated. All
-error messages will be send to **stderr**.
+error messages will be send to **stderr**. You can also inspect files in the
+**workdir** for additional information. The workdir is where files are placed before
+getting added to the zip archive. The workdir is either manually specified with
+the `--workdir` flag or created automatically in a temp directory (e.g. in `/tmp/`).
 
 ## The Manifest File
 TODO
@@ -205,13 +255,15 @@ may be added up to represent the desired status.
 | 0   | 0 (if unset) | `success`     | Script ran without a failure |
 
 ### Results JSON File as Input Argument
-It is recommended that scripts accept a JSON file as an argument. The scripts
-may then output structured results by creating/updating the JSON file.
+It is recommended that scripts accept a JSON file as an argument (using the `-J`
+flag is preferred). The scripts may then output structured results by
+creating/updating the JSON file.
 
-If the give results JSON file already exist, add data to it. If the JSON file
-does not exist, then the script must create the file itself.
+If the given results JSON file already exist, the script should add data to it.
+If the JSON file does not exist, then the script must create the file itself.
 
 In dealing with the results JSON files, the script should:
+
 * Never overwrite other data already in and existing JSON file.
 * Attempt to write data in a way where collisions would never occur; e.g. appending to a list.
 * Separate results generated using the check script from other results in the file.
@@ -254,3 +306,12 @@ This second **bad example** of output fails to separate the script output from
 other types of output. If two scripts did the same practice, then both
 differing output types would be mixed in the same list format! This would be
 very annoying to try to parse.
+
+
+## Author and Copyright
+Written by Nathan Collins (npcollins/gmail/com)  
+
+Copyright © 2021 Michigan State University Board of Trustees  
+
+## License
+Released under the MIT License
