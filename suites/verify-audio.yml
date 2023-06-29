@@ -6,29 +6,23 @@ manifest:
   filter:
     # equals, startswith, endswith, regex, ignorecase, greaterthan, lessthan
     - value: mediatype
-      equals: video
+      equals: audio
       ignorecase: true
   # For each manifest row, match the following files
   files:
     - label: pres
       # value: "{{ file.name }}"    # Default for files section
       startswith: "{{ basename }}"
-      regex: '(?:_pres\.mov|\.mkv)$'
-    - label: mezz
-      startswith: "{{ basename }}"
-      regex: '(?<!_pres)\.mov$'
+      endswith: '.wav'
     - label: access
       startswith: "{{ basename }}"
-      regex: '(?:_access\.mov|\.mp4)$'
+      endswith: '.mp3'
     - label: pres_hash
       startswith: "{{ basename }}"
-      regex: '(?:_pres\.mov|\.mkv)\.md5$'
-    - label: mezz_hash
-      startswith: "{{ basename }}"
-      regex: '(?<!_pres)\.mov\.md5$'
+      endswith: '.wav.md5'
     - label: access_hash
       startswith: "{{ basename }}"
-      regex: '(?:_access\.mov|\.mp4)\.md5$'
+      endswith: '.mp4.md5'
     - label: mods
       startswith: "{{ basename }}"
       endswith: '_MODS.xml'
@@ -55,52 +49,32 @@ stages:
   # Run access hash check
   stage1.1:
     script: "scripts/verify-hash -c {{ access }} -f {{ access_hash }} -v -J {{ results_path }}"
-  # Run mezzanine hash check
-  stage1.2:
-    script: "scripts/verify-hash -c {{ mezz }} -f {{ mezz_hash }} -v -J {{ results_path }}"
   # Run preservation hash check
-  stage1.3:
-    script: "scripts/verify-hash -c {{ pres }} -f {{ pres_hash }} -v -J {{ results_path }}"
-  # TODO handle duplicate stage declarations TODO
-  stage1.3:
+  stage1.2:
     script: "scripts/verify-hash -c {{ pres }} -f {{ pres_hash }} -v -J {{ results_path }}"
   # Run assets hash check
-  stage1.4:
+  stage1.3:
     script: "scripts/verify-hash -c {{ asset }} -f {{ asset_hash }} -v -J {{ results_path }}"
     loopvars:
       - asset
       - asset_hash
   # Run ephemera hash check
-  stage1.5:
+  stage1.4:
     script: "scripts/verify-hash -c {{ ephemera }} -f {{ ephemera_hash }} -v -J {{ results_path }}"
     loopvars:
       - ephemera
       - ephemera_hash
 
-  # AUDIO access traits
+  # Validate access audio traits
   stage2.1:
-    script: "scripts/validate-audio -c {{ access }} -s 48000 -m CBR -b null -v -J {{ results_path }}"
-  # AUDIO mezzanine traits
+    script: "scripts/validate-audio -c {{ access }} -s 44100 -m CBR -b null -v -J {{ results_path }}"
+  # Validate preservation audio traits
   stage2.2:
-    script: "scripts/validate-audio -c {{ mezz }} -s 48000 -m CBR -b 16 -v -J {{ results_path }}"
-  # AUDIO preservation traits
-  stage2.3:
-    script: "scripts/validate-audio -c {{ prez }} -s 48000 -m CBR -b 24 -v -J {{ results_path }}"
-  # VIDEO access traits
-  stage2.4:
-    script: "scripts/validate-video -c {{ access }} -d 1280x720 -d 640x480 -b 8 -v -J {{ results_path }}"
-  # VIDEO mezzanine traits
-  stage2.5:
-    script: "scripts/validate-video -c {{ mezz }} -d 720x480 -b 8 -v -J {{ results_path }}"
-  # VIDEO preservation traits
-  stage2.6:
-    script: "scripts/validate-video -c {{ pres }} -d 720x486 -b 10 -v -J {{ results_path }}"
+    script: "scripts/validate-audio -c {{ pres }} -s 96000 -m CBR -b 24 -v -J {{ results_path }}"
   # Verify file fingerprint
-  #stage2.7:
+  #stage2.3:
   #  script: "echo TODO"
 
   # Verify video frames
   #stage3.1:
   #  script: "echo TODO"
-
-  # Example specs: https://lib.msu.edu/filespecs/

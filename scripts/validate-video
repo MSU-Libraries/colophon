@@ -7,7 +7,7 @@ runhelp() {
     echo ""
     echo "Usage: $SCRIPT_NAME [FLAGS]"
     echo ""
-    echo "  Verify properties of an image"
+    echo "  Verify properties of a video stream"
     echo ""
     echo "FLAGS:"
     echo "  -c|--check-file FILE"
@@ -102,7 +102,7 @@ parse_args() {
 
     required_flags
 
-    # Check file and hash algo provided, but no hash file; auto check for hash file
+    # Validate video stream index selected
     #TODO not implemented
     #if [[ -z "${IDX}" ]]; then
     #    verbose "No index provided. Assuming: ${IDX}"

@@ -83,8 +83,8 @@ parse_args() {
             SAMPLES+=("${2}")
             shift; shift ;;
         -b|--bitdepth)
-            if ! [[ "$2" =~ ^[1-9][0-9]*$ ]]; then
-                die 5 "Invalid --bitdepth value. Must be a positive integer. Invalid value: $2"
+            if ! [[ "$2" =~ ^([1-9][0-9]*|null)$ ]]; then
+                die 5 "Invalid --bitdepth value. Must be a positive integer or 'null'. Invalid value: $2"
             fi
             BDEPTHS+=("${2}")
             shift; shift ;;
