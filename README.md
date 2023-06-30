@@ -6,25 +6,7 @@ number of scripts to validate the files founds. The output is
 then bundled into a zip file, including HTML report summary,
 JSON data details, and full output of all scripts run.
 
-## Table of Contents
-* [Installing](#installing)
-* [What is Needed to Run](#what-is-needed-to-run)
-* [How Colophon Works](#how-colophon-works)
-* [Running Colophon](#running-colophon)
-* [Flags and Arguments](#flags-and-arguments)
-  - [Colophon Exit Codes](#colophon-exit-codes)
-  - [Colophon Output](#colophon-output)
-* [The Manifest File](#the-manifest-file)
-  - [Generating a Manifest](#generating-a-manifest)
-* [The Suite File](#the-suite-file)
-  - [Template Strings](#template-strings)
-* [Check Scripts](#check-scripts)
-  - [Relative Paths](#relative-paths)
-  - [Input](#input)
-  - [File Modification](#file-modification)
-  - [Output](#output)
-  - [Exit Codes](#exit-codes)
-  - [Results JSON File as Input Argument](#results-json-file-as-input-argument)
+[[_TOC_]]
 
 ## Installing
 Colophon is written primarily in Python, but makes use of scripts
@@ -71,7 +53,7 @@ Before you can run Colophon, you will need the following:
 * A CSV listing records that need to be verified (the **manifest**)
 * A configuration file of what tests to run (the **suite** of tests)
 
-## Other Terms to Know
+### Other Terms to Know
 
 * __Error__: A script was unable to complete. This is likely due to due incorrect input or missing dependencies.
 * __Failure__: A script ran to completion, but the validation did not succeed on the given file using the given parameters.
@@ -80,10 +62,85 @@ Before you can run Colophon, you will need the following:
 Colophon starts with the manifest file. This is an arbitrary CSV file
 with a header row to give column labels.
 
+```csv
+"mediatype","basename", "title"
+"Video",    "UP-F00001","UPP302 - Press presentation 02/10/2004"
+"Video",    "UP-F00002","UPP710 - President's speech 12/20/2007"
+"Book",     "UP-F00003","UPP098 - College pamphlet 1921"
+```
+
+When running Colphon, you will also specify a directory where files
+related to the manifest should be found.
+
+```
+batch_01/upp302/UP-F00001.mkv
+batch_01/upp302/UP-F00001.mkv.md5
+batch_01/upp302/UP-F00001.mp4
+batch_01/upp302/UP-F00001.mp4.md5
+batch_01/upp302/UP-F00001_asset_cover.tif
+batch_01/upp302/UP-F00001_asset_back.tif
+batch_01/upp710/UP-F00002.mkv
+batch_01/upp302/UP-F00002.mkv.md5
+batch_01/upp710/UP-F00002.mp4
+batch_01/upp302/UP-F00002_digitization_notes.txt
+batch_01/upp098/UP-F00003.pdf
+batch_01/upp098/UP-F00003_front.tif
+batch_01/upp098/UP-F00003_back.tif
+batch_01/upp098/UP-F00003_front.jpg
+batch_01/upp098/UP-F00003_back.jpg
+```
+
+And finally, a test suite file while specifies what Colophon should
+do.
+
+Example of the first part of a test suite file. The `manifest:` section:
+```yaml
+manifest:
+  id: "{{ basename }}"  # id should be unique data; it's used in logs and output
+  filter:               # only use manifest rows that match these filters
+    - value: mediatype
+      equals: Video
+  files:                # find files matching the manifest row
+    - label: preserve_copy
+      startswith: "{{ basename }}"
+      endswith: '.mkv'
+    - label: access_copy
+      startswith: "{{ basename }}"
+      endswith: '.mp4'
+    - label: preserve_hash
+      startswith: "{{ basename }}"
+      endswith: '.mkv.md5'
+    - label: access_hash
+      startswith: "{{ basename }}"
+      endswith: '.mp4.md5'
+    - label: asset_file
+      multiple: true
+      optional: true
+      startswith: "{{ basename }}"
+      regex: '_asset.*\.tif$'
+```
+
 Colophon will iterate over the rows in the manifest, comparing it to
 the suite and source directory. If manifest row matches the given
-suite files, Colophon will attempt to find matching files from the
+suite files, Colophon will attempt to find matching _files_ from the
 source directory based of definitions within the suite file.
+
+Example of the second part of a test suite file. The `stages:` section:
+```yaml
+stages:                 # run a set of stages (scripts) for each manifest row
+  access.hash:          # each stage name is just a label for identifing the stage
+    script: "scripts/verify-hash -c {{ access_copy }} -f {{ access_hash }} -v -J {{ results_path }}"
+  preserve.hash:
+    script: "scripts/verify-hash -c {{ preserve_copy }} -f {{ preserve_hash }} -v -J {{ results_path }}"
+  access.audio:
+    script: "scripts/validate-audio -c {{ access_copy }} -s 48000 -m CBR -v -J {{ results_path }}"
+  preserve.audio:
+    script: "scripts/validate-audio -c {{ prezerve_copy }} -s 48000 -m CBR -b 24 -v -J {{ results_path }}"
+  access.video:
+    script: "scripts/validate-video -c {{ access_copy }} -d 640x480 -b 8 -v -J {{ results_path }}"
+  preserve.video:
+    script: "scripts/validate-video -c {{ preserve_copy }} -d 720x486 -b 10 -v -J {{ results_path }}"
+```
 
 With files in hand, Colophon then runs stages of user-defined scripts
 (also defined in the suite file). If those scripts succeed, then we
@@ -93,7 +150,41 @@ row, the process repeats for the next row until all rows are completed.
 Finally, all results, reports, and script output are bundled together
 and returned as a zip file.
 
-Much of process is user defined, which makes Colophon very flexible
+Example section of the `summary.json` file, which is included in the output:
+```json
+{
+  "row-overview": {
+    "succeeded": 1,
+    "failed": 1,
+    "skipped": 1
+  },
+  "skipped": ["UP-F00003"],
+  "failed": ["UP-F00002"],
+  "unassociated-files": [
+    "batch_01/upp302/UP-F00002_digitization_notes.txt"
+  ],
+  "rows": {
+    "UP-F00001": {
+      "exit-codes": {
+        "0": {
+          "occurrences": 6,
+          "code-meaning": "success"
+        }
+      }
+    },
+    "UP-F00002": {
+      "failures": [
+        "Manifest(id=UP-F00002) was required to match a file for label 'access_hash', but no matching file was found."
+      ]
+    },
+    "UP-F00003": {
+      "skipped-because": "Filter did not match: {'value': 'mediatype', 'equals': 'video'}"
+    }
+  }
+}
+```
+
+Much of Colophon process is user defined, which makes it very flexible
 and configurable. It does mean you will need to invest some time into
 creating a the suite file before running your verifications.
 
@@ -104,7 +195,7 @@ manifest file, suite file), then running `colophon` is quite simple.
 ./colophon -m example_manifest.csv -s suites/verify-video.yml -d example_files/ -v
 ```
 
-Where:
+Where the arguments are:
 
 * `example_manifest.csv` is the CSV file containing the manifest
 * `suites/verify-video.yml` is a YAML file defining the suite to run against the manifest
@@ -142,11 +233,94 @@ error messages will be send to **stderr**. You can also inspect files in the
 getting added to the zip archive. The workdir is either manually specified with
 the `--workdir` flag or created automatically in a temp directory (e.g. in `/tmp/`).
 
+Details on what is contained within an output file are listed below.
+
+__`summary.json`__  
+A JSON file containing all manifest objects, including number of
+successful stages for each, failures and a short description for the failure reason,
+and explainations of why an manifest row was skipped. Additionally, if any files
+from the source directory did not matched any rows, they are listed as
+`unassociated-files` in the summary.
+
+__`results.json`__  
+A JSON files where scripts invoked by the stages can store additional
+output.
+
+__`manifest.csv`__  
+The processed manifest file, including any additional columns created
+from suite file matches.
+
+__`colophon.log`__  
+The verbose logs from the main `colophon` program.
+
+__`{ID}/{STAGE}/stdout.txt`__  
+For each stage/manifest row, the a file recording the
+stdout generated by script script.
+
+__`{ID}/{STAGE}/stderr.txt`__  
+For each stage/manifest row, the a file recording the
+stderr generated by script script.
+
+__`{ID}/{STAGE}/ecode.{EXITCODE}`__  
+For each stage/manifest row, the a file identifying
+the exit code from the script run. Human readable tags
+describing the exit code are within the file.
+
 ## The Manifest File
-TODO
+The manifest is a CSV file with fields relevant to performing the quality control
+checks desired. The can include:
+
+* Sufficient naming to identify files
+* Some identifying data, in the case where the name info doesn't do this
+* The type of object or media, if multiple types are present
+* Additional fields specifying validation parameters where they could vary from record to record
+  * E.g. Video resolution, color bit depth, compression type
+
+An example manifest could look like this:
+```csv
+"mediatype","basename","name", "resolution", "DPI"
+"audio","MSUF000000","Adams interview", "", ""
+"Video","MSUF000001","Billing's debate", "720x480", ""
+"book","MSUF000002","Chloe's Biography", "", "400"
+"Audio","MSUF000003","Declan's speech", "", ""
+"Video","MSUF000005","Eric's review", "640x480", ""
+"Book","MSUF000006","Ferrell's history ", "", "300"
+```
+
+If an attribute of a file is going to be consistent across all items
+being verified, they do _not_ need to be in the manifest. We can
+put those values into the testing suite directly. 
 
 ### Generating a Manifest
-TODO `generate-manifest-from-spreadsheet`  
+If you have a spreadsheet, such as a `.xlsx` or `.ods` with the needed fields,
+Colophon comes with a helper script to convert it to `.csv`. It may
+be easier to create a new `.csv` using your preferred spreadsheet program, this
+script may help if you are trying to create a programmatic solutions.
+
+It takes a mapping of old column IDs (e.g. `a`, `b`, etc) to new column names,
+as well as number of header rows to ignore.
+
+Example manifest map `.yml` file:
+```yaml
+---
+skiprows: 1
+columns:
+  - column: b
+    label: mediatype
+  - column: c
+    label: basename
+  - column: f
+    label: name
+  - column: j
+    label: resolution
+  - column: n
+    label: dpi
+```
+
+Generating the manifest:
+```sh
+./helpers/generate-manifest-from-spreadsheet -s my-speadsheet.xlsx -m my-mapfile.yml -o my-new-manifest.csv
+```
 
 ## The Suite File
 TODO
@@ -158,7 +332,7 @@ when parsing values from suite files (except for `regex` expressons).
 Depending on the context, different variables may be available within
 the template render context.
 
-`manifest`
+__`manifest`__  
 The following variables are available:
  - All fields defined as headers in the manifest
 
@@ -166,18 +340,20 @@ For example, if the manifest had a column header called `basename`, then you wou
 be able to reference `{{ basename }}` within a string to insert the row value for
 that column.
 
-`manifest.files`
-The following variables are available in addition to normal `manifest` fields.:
- - `file.name`: The full name of the file (no path)
- - `file.path`: The full path of the file
- - `file.base`: The name of the file without its extension
- - `file.ext`: The file extension (no leading period)
- - `file.size`: The size of the file in bytes
+__`manifest.files`__  
+The following variables are available in addition to normal `manifest` fields:
 
-`stages`
+- `file.name`: The full name of the file (no path)
+- `file.path`: The full path of the file
+- `file.base`: The name of the file without its extension
+- `file.ext`: The file extension (no leading period)
+- `file.size`: The size of the file in bytes
+
+__`stages`__ 
 The following variables are available:
- - All fields that are available from the `manifest` context.
- - All labels defined in `manifest.files` are now field names and can be referenced.
+
+- All fields that are available from the `manifest` context.
+- All labels defined in `manifest.files` are now field names and can be referenced.
 
 _Note_: Jinja variables within the `stages` section of the manifest will be automatically
 quoted for use as arguments within a shell environment.
@@ -185,14 +361,20 @@ quoted for use as arguments within a shell environment.
 ## Check Scripts
 Colophon works by running a set of check scripts in stages against your manifest.
 
+A number of scripts are included with Colophon within the `scripts/` directory.
+
+TODO see the include scripts documentation
+
+### Writing a Check Script
+
 A check script can be written in any lanugage or shell which abides by a set of rules.
 
-### Relative Paths
+#### Relative Paths
 Check scripts should accept relative paths as input arguments and should _NOT_
 attempt to convert them into absolute paths at any point. If relative paths were
 passed in, then relative paths should be used for any logs or output.
 
-### Input
+#### Input
 It is recommended that a check script can accept a JSON file as an input argument.
 This would be the `results.json` and the script should write the result of its
 check to this file in a manner that _does not overwrite any other data in the file_
@@ -202,11 +384,11 @@ The choice for how you accept input arguments for the script is up to you, but
 it is recommended to follow the same style as existing scripts. Have a look at
 the `scripts/` directory for examples.
 
-### File Modification
+#### File Modification
 1. A script must **never** modify any data or file from the source directory.
 2. A script must **never** create any files/folders inside the source directory.
 
-### Output
+#### Output
 Output from a check script may write anything to stdout or stderr, be it output
 from commands it is calling, debug messages, or informational messages.
 
@@ -217,7 +399,7 @@ and media issues found.
 A check script _may_ write structured output data into
 the [Results-JSON](#results-json-file-as-input-argument) file.
 
-### Exit Codes
+#### Exit Codes
 Check scripts **must** have a standard exit code which indicates the result
 of the script. A code of `0` means the check was successful. Any other value means
 something occurred which might require attention; this includes failing the
@@ -254,7 +436,7 @@ may be added up to represent the desired status.
 | 0   | 1      | `failure`           | Script encountered failure |
 | 0   | 0 (if unset) | `success`     | Script ran without a failure |
 
-### Results JSON File as Input Argument
+#### Results JSON File as Input Argument
 It is recommended that scripts accept a JSON file as an argument (using the `-J`
 flag is preferred). The scripts may then output structured results by
 creating/updating the JSON file.

@@ -7,9 +7,16 @@ import time
 import subprocess
 import sys
 import tempfile
+import shutil
 import collections
 
 # Dependencies: libreoffice-common
+
+if not shutil.which('libreoffice'):
+    print("LibreOffice is required to perform this conversion.")
+    print("On Debian/Ubuntu, you can install this via:")
+    print("  apt install -y libreoffice-common")
+    sys.exit(1)
 
 def stderr(*args, **kwargs):
     """
