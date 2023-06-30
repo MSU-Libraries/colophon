@@ -1,0 +1,23 @@
+---
+site_name: Colophon
+repo_url: https://github.com/msu-libraries/colophon
+repo_name: msu-libraries/colophon
+
+theme:
+  name: "material"
+
+plugins:
+- search:
+
+markdown_extensions:
+- toc:
+    toc_depth : "1-1"
+
+nav:
+- Installing: ./#installing
+- How Colophon Works: ./#how-colophon-works
+- Running Colophon: ./#running-colophon
+- The Manifest File: ./#this-manifest-file
+- The Suite File: ./#the-suite-file
+- Check Scripts: ./#check-scripts
+- Copyright and License: ./#author-and-copyright
