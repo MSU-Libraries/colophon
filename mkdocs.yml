@@ -12,12 +12,14 @@ plugins:
 markdown_extensions:
 - toc:
     toc_depth : "1-1"
+- admonition
+- pymdownx.superfences
 
 nav:
 - Installing: ./#installing
 - How Colophon Works: ./#how-colophon-works
 - Running Colophon: ./#running-colophon
-- The Manifest File: ./#this-manifest-file
+- The Manifest File: ./#the-manifest-file
 - The Suite File: ./#the-suite-file
 - Check Scripts: ./#check-scripts
 - Copyright and License: ./#author-and-copyright

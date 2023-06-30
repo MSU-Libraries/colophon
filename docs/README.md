@@ -11,7 +11,7 @@ JSON data details, and full output of all scripts run.
 * [Installing](#installing)
 * [How Colophon Works](#how-colophon-works)
 * [Running Colophon](#running-colophon)
-* [The Manifest File](#this-manifest-file)
+* [The Manifest File](#the-manifest-file)
 * [The Suite File](#the-suite-file)
 * [Check Scripts](#check-scripts)
 * [Copyright and License](#author-and-copyright)
@@ -219,7 +219,7 @@ A full list of command options is also avilable by using the `-h` or `--help` fl
 * `-r, --retry FAILED`      Re-run failed tests specified in provided JSON file from previous run
 * `-i, --ignore-missing`    Ignore manifest entries that have no files matched
 * `-t, --strict`            Exit code 0 only with no manifest entries skipped and no unassociated files
-* `-v, --verbose`           Provide details output while running
+* `-v, --verbose`           Provide details output while running (verbose logs will always be inlcuded in output bundle)
 * `-q, --quiet`             Suppress output while running
 
 ### Colophon Exit Codes
@@ -331,25 +331,60 @@ Generating the manifest:
 ```
 
 ## The Suite File
-TODO
+The suite file is written in Yaml and defines everything Colophon does when you run it.
+Example suite files are provided in the `suites/` directory with Colophon. You will
+need to heavily modify these to suite your own media if you decide to start with one of these.
+
+Basic structure of a suite files is as follows:
+```yaml
+---
+# The manifest: section defines how Colophon will read/update the manifest.
+# It operates on a row-by-row basis within the manifest. E.g. each row in the
+# manifest will be checked against the filter: and each row will search to
+# find matching files: from the source directory.
+manifest:
+  # The id: allows you to define how a manifest row is referred to by Colophon
+  # A string value that should be unique (otherwise it would serve as a poor identifier!)
+  id:       # (string)
+  # The filter: allows you to selectively iterate over only manifest rows which
+  # match all the filters you define here.
+  filter:   # (list)
+  # The files: has you define rules for finding each of the files from the source
+  # directory which will be associated with the manifest row. Each file has
+  # a label you define and that label will be added to the manifest with the
+  # associated value being the matched file(s).
+  files:    # (list)
+
+# The stages: section defines a set of independent stages, each with a command
+# that will be run using the manifest row data. This happens only AFTER the
+# above manifest: section has completed filtering and finding files.
+stages:     # (associative array)
+```
+
+A full definition of manifest fields, templating values into them, and their
+sub-fields are covered in the next documentation sections.
 
 ### Template Strings
 Colophon makes use of [Jinja2](https://jinja2docs.readthedocs.io/) template rendering
 when parsing values from suite files (except for `regex` expressons).
 
-Depending on the context, different variables may be available within
+Any fields within the manifest can be referenced inside the suite by means of Jinja expressions,
+such as `{{ field_name }}`. Depending on the context, additional variables may be available within
 the template render context.
 
-__`manifest`__  
-The following variables are available:
- - All fields defined as headers in the manifest
-
-For example, if the manifest had a column header called `basename`, then you would
-be able to reference `{{ basename }}` within a string to insert the row value for
+For example, if the manifest had a column header called `objectname`, then you would
+be able to reference `{{ objectname }}` within a string to insert the row value for
 that column.
 
-__`manifest.files`__  
-The following variables are available in addition to normal `manifest` fields:
+In addition to [built-in Jina2 filters](https://jinja.palletsprojects.com/en/3.0.x/templates/#builtin-filters),
+Colophon provides the additional filters:
+
+* `basename` Runs Python's `os.path.basename()` on the value.
+* `esh` Escapes the value for use as a shell command argument. This is applied automatically within `stages:` section of suites.
+
+__`manifest.files:`__  
+Within the `files:` section, the following variables are available in addition to
+the normal `manifest` fields:
 
 - `file.name`: The full name of the file (no path)
 - `file.path`: The full path of the file
@@ -357,21 +392,207 @@ The following variables are available in addition to normal `manifest` fields:
 - `file.ext`: The file extension (no leading period)
 - `file.size`: The size of the file in bytes
 
-__`stages`__ 
-The following variables are available:
+__`stages`__  
+Within the `stages:` section, any files defined within the `manifest.files:` section have
+already been added to the manifest. The `label:` becomes the manifest field name, and the
+matched file becomes the value (or blank if not match and the file was optional).
 
-- All fields that are available from the `manifest` context.
-- All labels defined in `manifest.files` are now field names and can be referenced.
+With stages, the variable `results_path` is also available. This is the path to the
+`results.json` which will be included in the output zip bundle. This is indended to be
+used with scripts' `-J` flag, which may [output JSON results](#results-json-file-as-input-argument).
 
 _Note_: Jinja variables within the `stages` section of the manifest will be automatically
 quoted for use as arguments within a shell environment.
 
+### Manifest Field Details
+
+#### `manifest.id:` (string)
+The `id:` field in the manifest is used within logs to identify which row the log entry
+is referring to. It is strongly recommended you define this to be a unique value from
+within your manifest.
+
+```yaml
+manifest:
+  id: "{{ mediatype }}-{{ objectid }}"
+```
+
+#### `manifest.filters:` (list)
+Allows the suite to filter specific rows to process. Only rows matching all
+provided filters will be used. Rows which do not match the filters will be
+ignored.
+
+Each filter is an associative array and takes a `value:`, which must be a
+manifest field name. Additionally, it needs one or more types of filters.
+
+The __filter types__ are:
+
+* `equals:` The field in `value:` must be exactly the value of this.
+* `startswith:` The field in `value:` must start with the value of this.
+* `endswith:` The field in `value:` must end with the value of this.
+* `regex:` The field in `value:` must match this regular expression. (Note that `regex:` values do NOT render as Jinja2 templates.)
+* `ignorecase:` Boolean. If set to `true`, the other filter types within this filter are case insensitive. (Note that this _does_ affect `regex:`.)
+* `greaterthan:` The field in `value:` must be numerically greater than this.
+* `lessthan:` The field in `value:` must be numerically less than this.
+
+```yaml
+manifest:
+  filters:
+  - value: mediatype
+    equals: audio
+    ignorecase: true
+  - value: donor
+    endswith: Smith
+  - value: year
+    greaterthan: 1950
+    lessthan: 1961
+```
+
+#### `manifest.files:` (list)
+Define which files should be found for each row in the manifest. Each
+item in the `files:` section _requires_ a `label:` defined. The `label:`
+will be a new field within the manifest for which the value will be the
+path of the matched file(s).
+
+Each entry in `files:` also makes use of the same __filter types__
+defined in the `manifest.filters:` section above.
+
+Additionally, the following fields are available:
+
+* `multiple:` Boolean. If set to `true`, this file entry can match any number of files.
+* `optional:` Boolean. If set to `true`, this file entry is optional and will not cause a failure should no matching files be found.
+* `linkedto:` Defines a linked file. Must be given `label:` to another file that has already been defined. This requires a file match for each file match the linked file entry finds, even if that linked file entry was optional.
+
+```yaml
+manifest:
+  files:
+  - label: metadata_file
+    startswith: "{{ objectname }}"
+    endswith: '_mods.xml'
+  - label: pres_file
+    startswith: "{{ objectname }}"
+    regex: '(?:\.mov|\.mkv)$'
+  - label: pres_hash
+    startswith: "{{ objectname }}"
+    regex: '(?:\.mov|\.mkv).md5$'
+  - label: asset
+    multiple: true
+    optional: true
+    startswith: "{{ objectname }}"
+    endswith: '_asset.tif'
+  - label: asset_hash
+    linkedto: asset
+    startswith: "{{ asset | basename }}"
+    endswith: '.md5'
+```
+
+#### `stages:` (associative array)
+The `stages:` section contains any number of stages which will be iterated
+over in order.
+
+#### `stages.STAGE_NAME:` (associative array)
+Where `STAGE_NAME` is a unique value used to identify that stage. For example,
+it could be `stage1.0`, `stage1.1`, `stage1.2`, etc. Or more descriptive like
+`audio.file-metadata`,`audio.waveform`,`video-metadata`, etc.
+
+The `STAGE_NAME` will be used within logs and in structuring the location of script
+output files (e.g. `stdout.txt`).
+
+#### `stages.STAGE_NAME.script:` (string)
+Define the script command to run for the given stage. Jinja expressions used
+within the command will be auto-escaped for use as arguments within a shell command.
+
+The output of the command will always be saved in the output zip bundle within
+the path `{{ manifest.id }}/{{ STAGE_NAME }}/`:
+
+* `stdout.txt` All output to stdout while the script ran.
+* `stderr.txt` All output to stderr while the script ran.
+* `ecode.?` The script exit code (where `?` is in the filename). The contents of the file will also include the exit code and human readable label(s) explaining the exit code's meaning.
+
+```yaml
+stages:
+  video.hash:
+    script: "scripts/verify-hash -c {{ media_file }} -f {{ media_file_hash }} -v -J {{ results_path }}"
+  video.size:
+    script: "custom-scripts/validate-size -c {{ media_file }} --min-size {{ bytes_lower }} --max-size {{ bytes_upper }} -v"
+```
+
 ## Check Scripts
 Colophon works by running a set of check scripts in stages against your manifest.
 
-A number of scripts are included with Colophon within the `scripts/` directory.
+Well written scripts will provide a full list of flags and their use by using the `-h` or
+`--help` flag.
+```sh
+$ ./scripts/verify-hash -h
 
-TODO see the include scripts documentation
+Usage: verify-hash [FLAGS]
+
+  Verify a file contents matches a given hash
+
+FLAGS:
+  -c|--check-file FILE
+      The file to verify
+  -f|--hash-file HASH_FILE
+      A file containing a hash to verify against.
+  -s|--hash-str HASH_STR
+      A string hash to verify against.
+  -a|--algo ALGO
+      The algorithm to use. E.g. md5, sha1, sha256, etc
+  -J|--json JSON
+      Write results to the file JSON.
+  -v|--verbose
+      Display verbose output.
+```
+
+### Included Check Scripts
+Colophon includes a number of check-scripts, though you can always [write your own](#writing-a-check-script). Additional scripts and script features will be included with each future Colophon release.
+
+All these are included in the `scripts/` directory. A brief summary of these scripts are included below. For the most up-to-date info on these scripts, refer to their `--help` info.
+
+#### `verify-hash`
+Verify a file contents matches a given hash, the hash being either in
+a file or passed as string argument.
+
+Example use:
+```sh
+# Verify MD5 hash of media-file.wav matches hash within media-file.wav.md5 (algo auto-detected)
+./scripts/verify-hash -c media-file.wav -f media-file.wav.md5 -v
+# Verify MD5 hash of media-file.wav matches hash within media-file.wav.md5 (hash file auto-detected)
+./scripts/verify-hash -c media-file.wav -a md5 -v
+# Verify MD5 hash of media-file.wav matched provided string hash
+./scripts/verify-hash -c media-file.wav -s d8e8fca2dc0f896fd7cb4cb0031ba249 -v
+```
+
+#### `validate-image`
+Validate the given image has the attributes provided. If multiple values for the same attribute
+is given, the image may match any one of them.
+
+Example use:
+```sh
+# Validate image dimension either of the provided options and that compression is disabled
+./scripts/validate-image -c media-file.tif -d 4000x3000 -d 6000x3000 -x none -v
+# Validate image dimension is exactly the provided one and that compression is LZW
+./scripts/validate-image -c media-file.tif -d 1600x1200 -x lzw -v
+```
+
+#### `validate-audio`
+Validate the given audio file, or an audio stream in a video file, has the attributes provided.
+If multiple values for the same attribute is given, the media file may match any one of them.
+
+Example use:
+```sh
+# Validate audio stream sampling rate (either 44100 or 48000), bitrate mode (CBR), and bit depth (24)
+./scripts/validate-audio -c media-file.wav -s 48000 -s 44100 -m cbr -b 24 -v
+```
+
+#### `validate-video`
+Validate the given video file has the attributes provided.
+If multiple values for the same attribute is given, the media file may match any one of them.
+
+Example use:
+```sh
+# Validate video stream dimensions (either 720x486 or 720x480) and color bit depth (10)
+./scripts/validate-video -c media-file.mkv -d 720x486 -d 720x480 -b 10 -v
+```
 
 ### Writing a Check Script
 
@@ -427,22 +648,26 @@ for details.
 When creating a check script at its simplest form, a script that returns
 either `0` or `1` will suffice.
 
+Note the special value `16` allows a script to stop a row from being futher processed.
+Essentially, this can be leveraged to do the same thing as a `filter:` would (ignoring
+the manifest row), only from within the `stages:` section.
+
 Exit code can be broken down into binary representation, each bit indicated
 a state. Each state has a descriptive string associated with it. Numerical values
 may be added up to represent the desired status.
 (E.g. `25` would indicate `16` + `8` + `1`)
 
-| Bit | Number | Descriptive message | Meaning |
-| --- | ------ | ------------------- | ------- |
-| 7   | 128    | N/A                 | Bit reserved for future use |
-| 6   | 64     | N/A                 | Bit reserved for future use |
-| 5   | 32     | N/A                 | Bit reserved for future use |
-| 4   | 16     | `skip_manfest_row`  | Script indicated this manifest row should be skipped in all further processing |
-| 3   | 8      | `warning_logged`    | One or more warning was generated by the script |
-| 2   | 4      | `bad_argument`      | One or more script arguments were incorrect or misused |
-| 1   | 2      | `inaccessible_file` | One or more files were missing or inaccessible |
-| 0   | 1      | `failure`           | Script encountered failure |
-| 0   | 0 (if unset) | `success`     | Script ran without a failure |
+| Number (Bit) | Descriptive message | Meaning |
+| ------------ | ------------------- | ------- |
+| 128 (7)      | N/A                 | Bit reserved for future use |
+| 64 (6)       | N/A                 | Bit reserved for future use |
+| 32 (5)       | N/A                 | Bit reserved for future use |
+| 16 (4)       | `skip_manfest_row`  | Script indicated this manifest row should be skipped in all further processing |
+| 8 (3)        | `warning_logged`    | One or more warning was generated by the script |
+| 4 (2)        | `bad_argument`      | One or more script arguments were incorrect or misused |
+| 2 (1)        | `inaccessible_file` | One or more files were missing or inaccessible |
+| 1 (0)        | `failure`           | Script encountered failure |
+| 0 (if unset) | `success`           | Script ran without a failure |
 
 #### Results JSON File as Input Argument
 It is recommended that scripts accept a JSON file as an argument (using the `-J`
