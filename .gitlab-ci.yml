@@ -1,0 +1,83 @@
+stages:
+  #- unittest_and_lint
+  - tag
+  - build_docs
+  #- make_release_gitlab
+  - make_release_github
+
+tag_job:
+  stage: tag
+  tags:
+    - msul-shared
+  allow_failure: false
+  when: manual
+  only:
+    - master
+  except:
+    - tags
+  before_script:
+    - apk add git
+  script:
+    # re-cloning to avoid runner cache
+    - rm -rf clone/ || true
+    - git clone https://gitlab-ci-token:$RW_CICD_TOKEN@gitlab.msu.edu/msu-libraries/digital-information/colophon.git clone/
+    - cd clone/
+    - VERSION=$( grep -E "^ *VERSION *=" "colophon" | tail -n1 | cut -d= -f2- | sed 's/ *$//' | sed 's/^ *//' )
+    - BASE_RELEASE=$( git tag -l ${VERSION} )
+    - RELEASE=$( git tag -l ${VERSION}* --sort=-v:refname | head -n 1 | cut -d'-' -f 2 )
+    - '[ "$RELEASE" = "$BASE_RELEASE" ] && RELEASE=0'
+    - '[ -z "$BASE_RELEASE" ] && RELEASE=-1'
+    - RELEASE=$(( RELEASE + 1 ))
+    - '[ "$RELEASE" -eq 0 ] && RELEASE_TAG="" || RELEASE_TAG="-$RELEASE"'
+    - TAG="${VERSION}${RELEASE_TAG}"
+    - echo "TAG=$TAG" > ../variables.env
+    - echo "VERSION=$VERSION" >> ../variables.env
+    - echo "RELEASE=$RELEASE" >> ../variables.env
+    - echo "Tagging with $TAG"
+    - git tag $TAG
+    - git push origin --tags
+  artifacts:
+    reports:
+      dotenv: variables.env
+
+build_docs_job:
+  stage: build_docs
+  tags:
+    - msul-shared
+  image: python:3.10
+  only:
+    - master
+  except:
+    - tags
+  script:
+    - pip install -r requirements.txt
+    - pip install -r requirements-docs.txt
+    - mkdocs build --site-dir public
+  artifacts:
+    paths:
+      - public
+    expire_in: 1 week
+
+update_github_job:
+  stage: make_release_github
+  tags:
+    - msul-shared
+  image: alpine:latest
+  when: manual
+  only:
+    - master
+  except:
+    - tags
+  before_script:
+    - apk add git curl
+  script:
+    # Update GitHub code
+    - rm -rf colophon.git
+    - git clone --mirror https://gitlab-ci-token:${CI_JOB_TOKEN}@gitlab.msu.edu/msu-libraries/digital-information/colophon.git
+    - cd colophon.git
+    # This will trigger the GitHub CI which builds the MkDocs into the gh-pages branch
+    - git push --force --mirror https://${GITHUB_USER_TOKEN}@github.com/MSU-Libraries/colophon.git
+    - sleep 120 # Needs time to propagate the changes first or this next step will fail
+    # Next we have to re-configure the Pages settings to set gh-pages as the branch again
+    - echo '{"build_type":"legacy","source":{"branch":"gh-pages","path":"/"}' > data.json
+    - "curl -X POST -H 'Accept: application/vnd.github+json' -u ${GITHUB_USER_TOKEN} https://api.github.com/repos/MSU-Libraries/colophon/pages -d '@data.json'"
